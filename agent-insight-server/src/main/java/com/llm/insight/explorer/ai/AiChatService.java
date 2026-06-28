@@ -4,8 +4,6 @@ import com.llm.insight.explorer.engine.ColumnAnalyzerService.AnalyzedColumn;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.ai.chat.model.ChatModel;
-import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -13,24 +11,32 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
- * Spring AI 1.1.8 统一 ChatClient 封装。
+ * Spring AI 2.0 多 Provider ChatClient 封装。
  *
- * 官方推荐用法：
- *   ChatClient.create(chatModel)
- *   chatClient.prompt().user("...").call().content()
- *
- * 支持 OpenAI / Ollama / Azure / MiniMax，切换只需改配置。
- * 参考：https://docs.spring.io/spring-ai/reference/1.1/api/chat/openai-chat.html
+ * 支持 OpenAI / Ollama / DeepSeek / Anthropic，根据 AI_PROVIDER 配置动态选择。
+ * 使用命名的 ChatClient Bean：openAiChatClient / deepseekChatClient / ollamaChatClient / anthropicChatClient。
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class AiChatService {
 
-    private final ChatModel chatModel;
+    private final AiProperties aiProps;
+    private final ChatClient openAiChatClient;
+    private final ChatClient deepseekChatClient;
+    private final ChatClient ollamaChatClient;
+    private final ChatClient anthropicChatClient;
+    private final ChatClient googleGenAiChatClient;
 
     private ChatClient getClient() {
-        return ChatClient.create(chatModel);
+        return switch (aiProps.getProvider().toLowerCase()) {
+            case "deepseek" -> deepseekChatClient;
+            case "ollama" -> ollamaChatClient;
+            case "anthropic" -> anthropicChatClient;
+            case "google", "google-genai", "gemini" -> googleGenAiChatClient;
+            case "openai" -> openAiChatClient;
+            default -> openAiChatClient;
+        };
     }
 
     /**
@@ -44,7 +50,7 @@ public class AiChatService {
      *       .content();
      */
     public String chat(String systemPrompt, String userMessage) {
-        if (!aiProps().isEnabled()) {
+        if (!aiProps.isEnabled()) {
             return "# AI 功能未启用\n请在配置中设置 `agent-insight.ai.enabled: true`";
         }
 
@@ -69,7 +75,7 @@ public class AiChatService {
      * 带结构化输出的对话（期望返回 JSON）。
      */
     public <T> T chatForJson(String systemPrompt, String userMessage, Class<T> clazz) {
-        if (!aiProps().isEnabled()) {
+        if (!aiProps.isEnabled()) {
             return null;
         }
 
@@ -119,7 +125,7 @@ public class AiChatService {
                                                String dataType, String renderType,
                                                List<String> sampleValues,
                                                List<Map<String, Object>> topValues) {
-        if (!aiProps().isColumnAnalysisEnabled()) {
+        if (!aiProps.isColumnAnalysisEnabled()) {
             return null;
         }
 
@@ -178,7 +184,7 @@ public class AiChatService {
      */
     public NlQueryResult translateToFilters(String naturalLanguage,
                                            List<AnalyzedColumn> availableColumns) {
-        if (!aiProps().isNlQueryEnabled()) {
+        if (!aiProps.isNlQueryEnabled()) {
             return null;
         }
 
@@ -219,7 +225,7 @@ public class AiChatService {
                                  List<AnalyzedColumn> columns,
                                  String tableName,
                                  String userQuestion) {
-        if (!aiProps().isSummarizationEnabled() || rows == null || rows.isEmpty()) {
+        if (!aiProps.isSummarizationEnabled() || rows == null || rows.isEmpty()) {
             return null;
         }
 
@@ -251,11 +257,6 @@ public class AiChatService {
                 """.formatted(userQuestion, tableName, columnsJson, rows.size(), dataPreview);
 
         return chat(systemPrompt, userMessage);
-    }
-
-    // 延迟加载，避免循环依赖
-    private AiProperties aiProps() {
-        return SpringHelper.getBean(AiProperties.class);
     }
 
     // ===== DTO =====

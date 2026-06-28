@@ -3,6 +3,7 @@
 | 版本 | 日期 | 作者 | 备注 |
 |------|------|------|------|
 | v1.0 | 2026-06-26 | - | 初稿 |
+| v1.1 | 2026-06-26 | - | 与 02-HLD.md 交叉引用，统一版本为 Spring Boot 4.1 / Spring AI 2.0；技术选型与当前代码库一致 |
 
 ---
 
@@ -1494,7 +1495,7 @@ export function useColumnConfig(tableKey: string) {
 
 | Component | Technology | Version | Purpose |
 |-----------|------------|---------|---------|
-| Framework | Spring Boot | 3.5.x | Core application framework |
+| Framework | Spring Boot | **4.1.0** | Core application framework |
 | Language | Java | 21 | Primary language |
 | Metadata Store | MongoDB | 7.x | Store all metadata collections |
 | Query (SQL) | JdbcTemplate | - | Execute MySQL/PostgreSQL queries |

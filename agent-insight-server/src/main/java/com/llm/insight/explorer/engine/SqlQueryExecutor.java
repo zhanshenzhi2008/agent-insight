@@ -79,27 +79,20 @@ public class SqlQueryExecutor implements QueryExecutor {
 
     @Override
     public List<Map<String, Object>> discoverColumns(String tableName, DynamicDatasourceManager manager) {
-        // datasourceKey 从 manager 缓存中查找，或由调用方传入
-        // 此处 tableName 仅用于查询列信息
-        InsightDatasource ds = null;
-        for (InsightDatasource d : manager.getDatasourceCache().values()) {
-            ds = d;
-            break;
-        }
+        InsightDatasource ds = resolveDatasource(manager);
         if (ds == null) return List.of();
         DataSource dataSource = manager.getSqlDataSource(ds);
         JdbcTemplate jdbc = new JdbcTemplate(dataSource);
 
         String schema = ds.getConnectionConfig().getDatabase();
-        String type = ds.getDatasourceType();
+        String type = ds.getDatasourceType().toUpperCase();
 
-        String sql = switch (type.toUpperCase()) {
+        String sql = switch (type) {
             case "MYSQL" ->
                 "SELECT COLUMN_NAME, DATA_TYPE, COLUMN_COMMENT, IS_NULLABLE, COLUMN_KEY, COLUMN_DEFAULT "
                         + "FROM INFORMATION_SCHEMA.COLUMNS "
                         + "WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION";
             case "POSTGRESQL" ->
-                // 标准 JDBC ? 占位符，跨版本兼容
                 "SELECT c.column_name::text AS COLUMN_NAME, "
                         + "c.data_type AS DATA_TYPE, "
                         + "pg_catalog.col_description(a.attrelid, a.attnum)::text AS COLUMN_COMMENT, "
@@ -114,13 +107,39 @@ public class SqlQueryExecutor implements QueryExecutor {
             default -> throw new IllegalArgumentException("Unsupported type: " + type);
         };
 
-        List<Object> args = switch (type.toUpperCase()) {
+        List<Object> args = switch (type) {
             case "MYSQL" -> List.of(schema, tableName);
-            case "POSTGRESQL" -> List.of(tableName, tableName); // tableName 同时用于 regclass 和 table_name 条件
+            case "POSTGRESQL" -> List.of(tableName, tableName);
             default -> List.of();
         };
 
         return jdbc.queryForList(sql, args.toArray());
+    }
+
+    /**
+     * 发现数据源中的所有表（不含视图）。
+     */
+    public List<Map<String, Object>> discoverTables(DynamicDatasourceManager manager) {
+        InsightDatasource ds = resolveDatasource(manager);
+        if (ds == null || !"MYSQL".equalsIgnoreCase(ds.getDatasourceType())) {
+            return List.of();
+        }
+        DataSource dataSource = manager.getSqlDataSource(ds);
+        JdbcTemplate jdbc = new JdbcTemplate(dataSource);
+
+        return jdbc.queryForList(
+                "SELECT TABLE_NAME, TABLE_COMMENT, TABLE_TYPE "
+                        + "FROM INFORMATION_SCHEMA.TABLES "
+                        + "WHERE TABLE_SCHEMA = ? AND TABLE_TYPE = 'BASE TABLE' "
+                        + "ORDER BY TABLE_NAME",
+                ds.getConnectionConfig().getDatabase());
+    }
+
+    private InsightDatasource resolveDatasource(DynamicDatasourceManager manager) {
+        for (InsightDatasource d : manager.getDatasourceCache().values()) {
+            return d;
+        }
+        return null;
     }
 
     private String buildCountSql(String sql) {
@@ -230,5 +249,5 @@ public class SqlQueryExecutor implements QueryExecutor {
         return sb.toString();
     }
 
-    private record SqlSegment(String sql, List<Object> params) {}
+    record SqlSegment(String sql, List<Object> params) {}
 }

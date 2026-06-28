@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Descriptions, Spin, message, Tag, Table, Space, Row, Col, Statistic, Button } from 'antd';
+import { Card, Descriptions, Spin, message, Tag, Table, Space, Row, Col, Statistic, Button, Empty } from 'antd';
 import { useParams, useNavigate } from 'react-router-dom';
 import { requestApi } from '../../services/api';
 import type { RequestOverview, AgentInstance } from '../../types';

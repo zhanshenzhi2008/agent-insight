@@ -43,6 +43,7 @@ public class ColumnAnalyzerService {
     // ===== SQL 数据库分析 =====
 
     private List<AnalyzedColumn> analyzeSql(InsightDatasource ds, String tableName) {
+        dsManager.cacheDatasource(ds);
         DataSource dataSource = dsManager.getSqlDataSource(ds);
         JdbcTemplate jdbc = new JdbcTemplate(dataSource);
 
@@ -101,13 +102,14 @@ public class ColumnAnalyzerService {
 
     private List<Map<String, Object>> getSqlColumnMeta(JdbcTemplate jdbc, String dbType,
                                                        String schema, String tableName) {
-        if ("MYSQL".equalsIgnoreCase(dbType)) {
+        String type = dbType.toUpperCase();
+        if ("MYSQL".equals(type)) {
             return jdbc.queryForList(
                     "SELECT COLUMN_NAME, DATA_TYPE, COLUMN_COMMENT, IS_NULLABLE "
                             + "FROM INFORMATION_SCHEMA.COLUMNS "
                             + "WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION",
                     schema, tableName);
-        } else if ("POSTGRESQL".equalsIgnoreCase(dbType)) {
+        } else if ("POSTGRESQL".equals(type)) {
             // 标准 JDBC ? 占位符，兼容所有 PostgreSQL 版本
             // 列注释通过 pg_catalog.col_description() + regclass OID 获取
             return jdbc.queryForList(
@@ -129,6 +131,7 @@ public class ColumnAnalyzerService {
     // ===== MongoDB 分析 =====
 
     private List<AnalyzedColumn> analyzeMongo(InsightDatasource ds, String tableName) {
+        dsManager.cacheDatasource(ds);
         var mongo = dsManager.getMongoTemplate(ds);
         var docs = mongo.find(
                 new org.springframework.data.mongodb.core.query.Query()

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Card, Table, Select, Button, Space, message, Tag, Typography,
   Switch, Input, InputNumber, Popconfirm, Tooltip, Row, Col,
@@ -6,13 +6,13 @@ import {
 } from 'antd';
 import {
   ThunderboltOutlined, RobotOutlined, CheckCircleOutlined,
-  DeleteOutlined, PlusOutlined, ReloadOutlined, EyeOutlined,
-  SparkleOutlined, LoadingOutlined
+  DeleteOutlined, PlusOutlined,
+  LoadingOutlined
 } from '@ant-design/icons';
-import { explorerApi } from '../../services/explorerApi';
+import { explorerApi } from '../../../services/explorerApi';
 import type { ColumnsType } from 'antd/es/table';
 
-const { Text, Title } = Typography;
+const { Text } = Typography;
 
 interface AiColumnAnalysis {
   columnName: string;
@@ -29,6 +29,7 @@ interface AiColumnAnalysis {
 }
 
 interface AnalyzedColumn {
+  id?: string;
   columnName: string;
   displayName: string;
   dataType: string;
@@ -44,23 +45,15 @@ interface AnalyzedColumn {
   timeField?: boolean;
   topValues?: Array<{ value: string; count: number; ratio: string }>;
   enabled?: boolean;
+  hidden?: boolean;
   aiAnalysis?: AiColumnAnalysis;
 }
 
 const DATA_TYPES = ['STRING', 'NUMBER', 'DATETIME', 'BOOLEAN', 'JSON', 'TEXT', 'ENUM'];
 const RENDER_TYPES = ['TEXT', 'TAG', 'BOOLEAN', 'MONEY', 'DATE', 'DATETIME', 'LINK', 'JSON', 'IMAGE', 'HTML'];
 
-const TypeTag: React.FC<{ type: string }> = ({ type }) => {
-  const colorMap: Record<string, string> = {
-    STRING: 'blue', NUMBER: 'green', DATETIME: 'orange',
-    BOOLEAN: 'purple', JSON: 'cyan', TEXT: 'default', ENUM: 'magenta'
-  };
-  return <Tag color={colorMap[type] || 'default'}>{type}</Tag>;
-};
-
 const NullBar: React.FC<{ ratio: number }> = ({ ratio }) => {
   const pct = Math.round(ratio * 100);
-  const color = pct > 50 ? 'exception' : pct > 20 ? 'normal' : 'success';
   return (
     <Tooltip title={`${pct}% 空值`}>
       <div style={{ width: 70, display: 'inline-block' }}>
@@ -88,7 +81,7 @@ const AiInsightDrawer: React.FC<{
 
   return (
     <Drawer
-      title={<><SparkleOutlined /> AI 列分析详情 — {column.columnName}</>}
+      title={<><ThunderboltOutlined /> AI 列分析详情 — {column.columnName}</>}
       placement="right"
       width={420}
       open={!!column}
@@ -157,9 +150,8 @@ const ColumnConfigPage: React.FC = () => {
   const [tables, setTables] = useState<any[]>([]);
   const [selectedDs, setSelectedDs] = useState<string>('');
   const [selectedTable, setSelectedTable] = useState<string>('');
-  const [columns, setColumns] = useState<AnalyzedColumn[]>([]);
+  const [, setColumns] = useState<AnalyzedColumn[]>([]);
   const [allColumns, setAllColumns] = useState<AnalyzedColumn[]>([]);
-  const [loading, setLoading] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [aiBatchLoading, setAiBatchLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -170,17 +162,17 @@ const ColumnConfigPage: React.FC = () => {
 
   // 加载数据源和 AI 状态
   useEffect(() => {
-    explorerApi.listDatasources().then(r => {
+    explorerApi.listDatasources().then((r: any) => {
       if (r.data.code === 0) setDatasources(r.data.data || []);
     });
-    explorerApi.getAiStatus().then(r => {
+    explorerApi.getAiStatus().then((r: any) => {
       if (r.data.code === 0) setAiStatus(r.data.data);
     }).catch(() => setAiStatus({ enabled: false }));
   }, []);
 
   useEffect(() => {
     if (!selectedDs) return;
-    explorerApi.listTables(selectedDs).then(r => {
+    explorerApi.listTables(selectedDs).then((r: any) => {
       if (r.data.code === 0) setTables(r.data.data || []);
     });
     if (selectedTable) loadExistingConfig();
@@ -229,7 +221,8 @@ const ColumnConfigPage: React.FC = () => {
         setColumns(merged.filter(c => c.enabled));
         message.success(`分析完成，发现 ${analyzed.length} 个字段`);
       } else {
-        message.error(res.data.message || '分析失败');
+        const err = (res.data as any).message || '分析失败';
+        message.error(err);
       }
     } catch (e: any) {
       message.error('分析失败: ' + (e.response?.data?.message || e.message));
@@ -395,7 +388,7 @@ const ColumnConfigPage: React.FC = () => {
         <Space>
           <Text code style={{ fontSize: 12 }}>{v}</Text>
           {r.timeField && <Tag color="orange" style={{ fontSize: 10 }}>时间</Tag>}
-          {r.aiAnalysis && <Tag color="purple" icon={<SparkleOutlined />} style={{ fontSize: 10 }}>AI</Tag>}
+          {r.aiAnalysis && <Tag color="purple" icon={<ThunderboltOutlined />} style={{ fontSize: 10 }}>AI</Tag>}
         </Space>
       )},
     { title: '展示名', key: 'displayName', width: 150, render: (_, r) => (
@@ -442,7 +435,7 @@ const ColumnConfigPage: React.FC = () => {
         r.topValues && r.topValues.length > 0 ? (
           <Space wrap size={2}>
             {r.topValues.slice(0, 2).map((tv, i) => (
-              <Tag key={i} color={r.tagColors?.[tv.value] || 'default'} style={{ fontSize: 10, maxWidth: 80 }} ellipsis>
+              <Tag key={i} color={r.tagColors?.[tv.value] || 'default'} style={{ fontSize: 10, maxWidth: 80 }}>
                 {tv.value}
               </Tag>
             ))}
@@ -459,7 +452,7 @@ const ColumnConfigPage: React.FC = () => {
             type="text"
             size="small"
             icon={aiDrawerColumn?.columnName === r.columnName && aiDrawerLoading
-              ? <LoadingOutlined /> : <SparkleOutlined />}
+              ? <LoadingOutlined /> : <ThunderboltOutlined />}
             onClick={() => handleSingleColumnAi(r)}
             disabled={!aiStatus?.enabled}
           />
@@ -499,7 +492,7 @@ const ColumnConfigPage: React.FC = () => {
             <Row gutter={16}>
               <Col span={3}><Statistic title="字段总数" value={totalCount} valueStyle={{ color: '#1890ff', fontSize: 20 }} /></Col>
               <Col span={3}><Statistic title="已启用" value={enabledCount} prefix={<CheckCircleOutlined />} valueStyle={{ color: '#52c41a', fontSize: 20 }} /></Col>
-              <Col span={3}><Statistic title="AI 增强" value={aiEnhancedCount} prefix={<SparkleOutlined />} valueStyle={{ color: '#722ed1', fontSize: 20 }} /></Col>
+              <Col span={3}><Statistic title="AI 增强" value={aiEnhancedCount} prefix={<ThunderboltOutlined />} valueStyle={{ color: '#722ed1', fontSize: 20 }} /></Col>
               <Col span={9} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 {/* AI 状态指示 */}
                 <Badge status={aiStatus?.enabled ? 'success' : 'default'}
@@ -508,7 +501,7 @@ const ColumnConfigPage: React.FC = () => {
                   onClick={handleAIAnalyze} loading={analyzing} disabled={!selectedDs || !selectedTable}>
                   {analyzing ? '分析中...' : '统计推断'}
                 </Button>
-                <Button icon={<SparkleOutlined />} onClick={handleAiBatchEnhance}
+                <Button icon={<ThunderboltOutlined />} onClick={handleAiBatchEnhance}
                   loading={aiBatchLoading} disabled={!aiStatus?.enabled || totalCount === 0}
                   style={{ background: '#f9f0ff', borderColor: '#722ed1', color: '#722ed1' }}>
                   AI 语义增强

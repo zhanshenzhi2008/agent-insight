@@ -7,7 +7,7 @@ import {
   PlusOutlined, DeleteOutlined, EditOutlined, ReloadOutlined,
   CheckCircleOutlined, StopOutlined, TableOutlined
 } from '@ant-design/icons';
-import { explorerApi } from '../../services/explorerApi';
+import { explorerApi } from '../../../services/explorerApi';
 
 const { Text } = Typography;
 
@@ -34,7 +34,7 @@ const TableConfigPage: React.FC = () => {
   const [discovering, setDiscovering] = useState(false);
 
   useEffect(() => {
-    explorerApi.listDatasources().then(r => {
+    explorerApi.listDatasources().then((r: any) => {
       if (r.data.code === 0) setDatasources(r.data.data || []);
     });
   }, []);
@@ -42,7 +42,7 @@ const TableConfigPage: React.FC = () => {
   useEffect(() => {
     if (!selectedDs) return;
     setLoading(true);
-    explorerApi.listTables(selectedDs).then(r => {
+    explorerApi.listTables(selectedDs).then((r: any) => {
       if (r.data.code === 0) setTables(r.data.data || []);
     }).finally(() => setLoading(false));
   }, [selectedDs]);

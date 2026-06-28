@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Input, Select, Spin, message, Tree, Empty, Table, Button, Space, Tabs } from 'antd';
+import { Card, Input, Select, Spin, message, Tree, Empty, Button, Space, Tabs } from 'antd';
 import { useParams, useSearchParams } from 'react-router-dom';
 import Editor from '@monaco-editor/react';
 import { sourceApi } from '../../services/api';

@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import {
   Card, Table, Select, Button, Space, Tag, Modal, Form,
-  Input, Switch, Popconfirm, message, Typography, Divider
+  Input, Switch, Popconfirm, message, Typography
 } from 'antd';
 import {
   PlusOutlined, DeleteOutlined, EditOutlined,
   CheckCircleOutlined, StopOutlined
 } from '@ant-design/icons';
-import { explorerApi } from '../../services/explorerApi';
+import { explorerApi } from '../../../services/explorerApi';
 
-const { Text, TextArea } = Typography;
+const { Text } = Typography;
 
 interface QueryTemplate {
   id?: string;
@@ -32,7 +32,7 @@ const QueryTemplatePage: React.FC = () => {
   const [form] = Form.useForm();
 
   useEffect(() => {
-    explorerApi.listDatasources().then(r => {
+    explorerApi.listDatasources().then((r: any) => {
       if (r.data.code === 0) setDatasources(r.data.data || []);
     });
   }, []);
@@ -40,7 +40,7 @@ const QueryTemplatePage: React.FC = () => {
   useEffect(() => {
     if (!selectedDs) return;
     setLoading(true);
-    explorerApi.listQueries(selectedDs).then(r => {
+    explorerApi.listQueryTemplates(selectedDs).then((r: any) => {
       if (r.data.code === 0) setTemplates(r.data.data || []);
     }).finally(() => setLoading(false));
   }, [selectedDs]);
@@ -60,14 +60,14 @@ const QueryTemplatePage: React.FC = () => {
     const values = await form.validateFields();
     try {
       if (modal.editing?.id) {
-        await explorerApi.updateQuery(modal.editing.id, values);
+        await explorerApi.updateQueryTemplate(modal.editing.id, values);
         message.success('更新成功');
       } else {
-        await explorerApi.createQuery({ ...values, datasourceKey: selectedDs });
+        await explorerApi.createQueryTemplate({ ...values, datasourceKey: selectedDs });
         message.success('创建成功');
       }
       setModal({ open: false });
-      const res = await explorerApi.listQueries(selectedDs);
+      const res = await explorerApi.listQueryTemplates(selectedDs);
       if (res.data.code === 0) setTemplates(res.data.data || []);
     } catch (e: any) {
       message.error('操作失败: ' + (e.response?.data?.message || ''));
@@ -76,8 +76,8 @@ const QueryTemplatePage: React.FC = () => {
 
   const toggleEnabled = async (record: QueryTemplate, enabled: boolean) => {
     try {
-      await explorerApi.updateQuery(record.id!, { ...record, enabled });
-      const res = await explorerApi.listQueries(selectedDs);
+      await explorerApi.updateQueryTemplate(record.id!, { ...record, enabled });
+      const res = await explorerApi.listQueryTemplates(selectedDs);
       if (res.data.code === 0) setTemplates(res.data.data || []);
       message.success(enabled ? '已启用' : '已禁用');
     } catch {
@@ -87,8 +87,8 @@ const QueryTemplatePage: React.FC = () => {
 
   const handleDelete = async (id: string) => {
     try {
-      await explorerApi.deleteQuery(id);
-      const res = await explorerApi.listQueries(selectedDs);
+      await explorerApi.deleteQueryTemplate(id);
+      const res = await explorerApi.listQueryTemplates(selectedDs);
       if (res.data.code === 0) setTemplates(res.data.data || []);
       message.success('删除成功');
     } catch {
@@ -111,7 +111,7 @@ const QueryTemplatePage: React.FC = () => {
         />
       ),
     },
-    { title: '名称', dataIndex: 'displayName', key: 'displayName', render: (v: string, r) => (
+    { title: '名称', dataIndex: 'displayName', key: 'displayName', render: (v: string) => (
       <Text strong>{v}</Text>
     )},
     { title: 'Key', dataIndex: 'queryName', key: 'queryName', render: (v: string) => <Text code>{v}</Text> },
@@ -218,11 +218,11 @@ const QueryTemplatePage: React.FC = () => {
             rules={[{ required: true }]}
             extra={
               <Text type="secondary" style={{ fontSize: 11 }}>
-                SQL: SELECT * FROM table WHERE status = :status | MongoDB: [{{"$match": {{status: ":status"}}}}]
+                SQL: SELECT * FROM table WHERE status = :status | MongoDB: [&#123;&quot;$match&quot;: &#123;status: &quot;:status&quot;&#125;&#125;]
               </Text>
             }
           >
-            <TextArea
+            <Input.TextArea
               rows={6}
               placeholder={
                 "-- MySQL/PostgreSQL:\nSELECT * FROM orders WHERE status = :status LIMIT 100\n\n-- MongoDB:\n[{$match: {status: ':status'}}]"

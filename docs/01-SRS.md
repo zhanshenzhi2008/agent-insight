@@ -3,6 +3,7 @@
 | 版本 | 日期 | 作者 | 备注 |
 |------|------|------|------|
 | v0.1 | 2026-06-25 | - | 初稿 |
+| v0.2 | 2026-06-26 | - | 新增 Data Explorer 模块；更新技术栈：Spring Boot 4.1 / Spring AI 2.0 / MongoDB 元数据 |
 
 ---
 
@@ -105,7 +106,17 @@
 - **F5.3** 源码 + 轨迹叠加：左侧源码，右侧执行结果，taskIndex 对应代码块高亮
 - **F5.4** 代码行号导航：从执行轨迹直接跳转到对应源码行
 
-#### F6：根因分析与报告（可选，后续迭代）
+#### F6：Data Explorer — 多数据源动态查询（新增）
+
+- **F6.1** 数据源管理：添加/编辑/删除 MySQL / PostgreSQL / MongoDB 数据源，支持连接测试
+- **F6.2** 表配置：配置哪些表/集合暴露为可查询对象，支持白名单/黑名单
+- **F6.3** 列配置：定义每列的展示名、类型、渲染方式、格式、宽度等元数据
+- **F6.4** 动态查询：基于 `insight_column_config` 元数据构建 WHERE / ORDER BY / LIMIT 查询
+- **F6.5** AI 列分析（可选）：调用 LLM 分析列数据特征，生成描述和渲染建议
+- **F6.6** 自然语言查询（可选）：将自然语言转换为 SQL/MongoDB 查询条件
+- **F6.7** 查询历史：记录所有查询执行审计日志
+
+#### F7：根因分析与报告（可选，后续迭代）
 
 - **F6.1** 失败根因推断：基于源码上下文 + 执行结果 + LLM 调用日志，生成根因分析
 - **F6.2** 分析报告导出：PDF / Markdown 格式
@@ -121,6 +132,22 @@
 | **并发** | 支持 10 用户同时在线分析 |
 | **安全** | 日志查看需权限校验，防止敏感数据泄露 |
 
+### 2.4 技术栈
+
+| 组件 | 版本 | 说明 |
+|------|------|------|
+| Spring Boot | 4.1.0 | Jakarta EE 10, Java 21 |
+| Spring AI | 2.0.0 | OpenAI / DeepSeek / Anthropic / Ollama / Google GenAI |
+| Spring Data JPA | 6.x | 访问 MySQL 日志表 |
+| MongoDB | 7.x | 元数据存储（insight_* 集合）+ Data Explorer |
+| Redis | - | 查询结果缓存 |
+| HikariCP | - | 多数据源连接池（MySQL / PostgreSQL / MongoDB） |
+| Knife4j | 4.x (jakarta) | API 文档，兼容 Spring Boot 4 |
+| React | 18.x | 前端框架 |
+| Ant Design | 5.x | 企业级 UI 组件库 |
+| Vite | 5.x | 前端构建工具 |
+| Maven | 3.x | 后端构建工具 |
+
 ---
 
 ## 3. 数据源规格
@@ -135,6 +162,10 @@
 | LLM 调用 | `log_llm_http_request` | 每次 LLM 调用的请求/响应/耗时 |
 | Agent 主表 | `log_llm_agent_main` | Agent 实例维度信息 |
 | Agent 脚本 | `{systemRoot}/agt/*.java` 等 | 源码 |
+| **元数据（MongoDB）** | `insight_datasource` | 外部数据源连接配置 |
+| **元数据（MongoDB）** | `insight_table_config` | 表/集合暴露配置 |
+| **元数据（MongoDB）** | `insight_column_config` | 列定义与展示规则 |
+| **外部数据源** | MySQL / PostgreSQL / MongoDB | Data Explorer 查询目标 |
 
 ### 3.2 数据关联
 
@@ -236,7 +267,9 @@ per-request 日志文件
 | 系统 | 依赖内容 |
 |------|----------|
 | MySQL | `log_llm_task_detail`、`log_llm_task_step`、`log_llm_http_request`、`log_llm_agent_main` |
-| MongoDB | 历史执行轨迹归档 |
+| **MongoDB** | 元数据集合（insight_*）；历史执行轨迹归档 |
+| **Redis** | 查询结果缓存；会话缓存 |
 | 文件存储 | per-request 日志文件 |
-| Redis | 查询缓存（可选） |
 | Agent 脚本仓库 | Agent 源码文件 |
+| **外部数据库** | Data Explorer 查询目标（MySQL / PostgreSQL / MongoDB） |
+| **AI Provider** | OpenAI / DeepSeek / Anthropic / Ollama / Google GenAI |

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Table, Tabs, Tag, Spin, message, Descriptions, Badge, Empty, Select, Button } from 'antd';
+import { Card, Table, Tag, Spin, message, Descriptions, Badge, Empty, Select } from 'antd';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { traceApi } from '../../services/api';
 import type { TaskDetail, TaskStep } from '../../types';

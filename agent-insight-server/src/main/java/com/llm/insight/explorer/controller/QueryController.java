@@ -8,10 +8,15 @@ import com.llm.insight.explorer.engine.QueryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * 通用数据查询执行 API。
@@ -59,5 +64,29 @@ public class QueryController {
         } catch (Exception e) {
             // 记录失败不影响查询
         }
+    }
+
+    @GetMapping("/history")
+    @Operation(summary = "查询执行历史")
+    public ApiResponse<List<InsightQueryHistory>> history(
+            @RequestParam(required = false) String datasourceKey,
+            @RequestParam(required = false) String tableName,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+
+        Query query = new Query()
+                .with(Sort.by(Sort.Direction.DESC, "executedAt"))
+                .skip((long) page * size)
+                .limit(size);
+
+        if (datasourceKey != null && !datasourceKey.isBlank()) {
+            query.addCriteria(Criteria.where("datasourceKey").is(datasourceKey));
+        }
+        if (tableName != null && !tableName.isBlank()) {
+            query.addCriteria(Criteria.where("tableName").is(tableName));
+        }
+
+        List<InsightQueryHistory> list = mongoTemplate.find(query, InsightQueryHistory.class);
+        return ApiResponse.ok(list);
     }
 }

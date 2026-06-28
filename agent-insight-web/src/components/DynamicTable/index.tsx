@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import {
-  Table, Tag, Button, Space, Tooltip, Typography, Empty
+  Table, Tag, Space, Tooltip, Typography, Empty
 } from 'antd';
 import type { ColumnsType, TableProps } from 'antd/es/table';
 import dayjs from 'dayjs';
@@ -165,7 +165,7 @@ const DynamicTable: React.FC<DynamicTableProps> = ({
     onChange: (page: number, pageSize: number) => onPageChange?.(page - 1, pageSize),
   } : false;
 
-  const handleChange: TableProps<any>['onChange'] = (p, _f, sorter) => {
+  const handleChange: TableProps<any>['onChange'] = (_p, _f, sorter) => {
     if (onSort && !Array.isArray(sorter)) {
       const field = typeof sorter.field === 'string' ? sorter.field : '';
       const dir = sorter.order === 'ascend' ? 'ASC' : sorter.order === 'descend' ? 'DESC' : '';
