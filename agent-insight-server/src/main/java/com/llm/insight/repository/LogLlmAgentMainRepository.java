@@ -29,10 +29,10 @@ public interface LogLlmAgentMainRepository
     @Query("SELECT m FROM LogLlmAgentMain m WHERE m.requestId = :requestId ORDER BY m.createTime ASC")
     List<LogLlmAgentMain> findAllByRequestIdOrderByCreateTime(@Param("requestId") String requestId);
 
-    @Query("SELECT m FROM LogLlmAgentMain m WHERE m.requestId = :requestId AND m.agentName = :agentName")
+    @Query("SELECT m FROM LogLlmAgentMain m WHERE m.requestId = :requestId AND m.topAgentName = :topAgentName")
     Optional<LogLlmAgentMain> findByRequestIdAndAgentName(
             @Param("requestId") String requestId,
-            @Param("agentName") String agentName);
+            @Param("topAgentName") String topAgentName);
 
     @Query("SELECT COUNT(m) FROM LogLlmAgentMain m WHERE m.requestId = :requestId")
     long countByRequestId(@Param("requestId") String requestId);

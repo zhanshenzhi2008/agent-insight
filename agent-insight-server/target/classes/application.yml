@@ -7,12 +7,12 @@ spring:
   application:
     name: agent-insight
 
-  # MongoDB（explorer 元数据存储）
-  data:
-    mongodb:
-      uri: ${MONGODB_URI:mongodb://172.18.2.14:${MONGODB_PORT:-27017}/agent_insight}
-      auto-index-creation: true
+  # MongoDB（explorer 元数据存储，Spring Boot 4 已改为 spring.mongodb.*）
+  mongodb:
+    uri: ${MONGODB_URI:mongodb://172.18.2.14:${MONGODB_PORT:27017}/agent_insight}
+    auto-index-creation: true
 
+  data:
     redis:
       host: ${REDIS_HOST:172.18.2.14}
       port: ${REDIS_PORT:6379}
@@ -25,37 +25,70 @@ spring:
           max-idle: 4
           min-idle: 1
 
-  # HikariCP 默认连接池（用于外部数据源，按需创建）
+  # 主数据源（HikariCP）：映射到 llm-agent 的 log_llm_* 表，用于 JPA 读 agent 运行轨迹
   datasource:
+    url: ${MYSQL_URL:jdbc:mysql://${MYSQL_HOST:172.18.2.14}:${MYSQL_PORT:3306}/${MYSQL_DB:llm_agent}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai&useUnicode=true&characterEncoding=UTF-8}
+    username: ${MYSQL_USERNAME:llm_agent}
+    password: ${MYSQL_PASSWORD:llm_agent}
+    driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
-      maximum-pool-size: 5
-      minimum-idle: 1
+      pool-name: AgentInsightHikariPool
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 10000
+      # 启动时若数据库不可达，不阻塞应用启动（仅日志告警）
+      initialization-fail-timeout: -1
 
   # Jackson 3 兼容：使用 Jackson 2 默认值，避免 com.fasterxml.jackson 路径变化导致问题
   jackson:
     use-jackson2-defaults: true
 
+  # JPA（Hibernate 7）：显式指定 MySQL 方言，并在 DB 不可达时允许跳过 JDBC metadata 查询
+  jpa:
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+        jdbc:
+          time_zone: Asia/Shanghai
+        # 启动时不通过 JDBC 拉取数据库元数据（版本/事务隔离级别等），
+        # 让应用在数据库临时不可达时也能完成启动；方言已显式指定。
+        boot:
+          allow_jdbc_metadata_access: false
+    open-in-view: false
+    show-sql: false
+
   # Spring AI 2.0.0 配置（支持 OpenAI / Ollama / DeepSeek / Anthropic / Google GenAI）
+  # Spring Boot 4 + Spring AI 2.0.0：chat.options.* 已迁移到 chat.*
   ai:
     openai:
       api-key: ${OPENAI_API_KEY:EMPTY}
       base-url: ${OPENAI_BASE_URL:}
       chat:
-        options:
-          model: ${OPENAI_MODEL:gpt-4o}
-          temperature: 0.3
+        model: ${OPENAI_MODEL:gpt-4o}
+        temperature: 0.3
     ollama:
       base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
       chat:
-        options:
-          model: ${OLLAMA_MODEL:qwen2.5}
-          temperature: 0.3
+        model: ${OLLAMA_MODEL:qwen2.5}
+        temperature: 0.3
     deepseek:
       api-key: ${DEEPSEEK_API_KEY:EMPTY}
       base-url: ${DEEPSEEK_BASE_URL:https://api.deepseek.com}
       chat:
-        options:
-          model: ${DEEPSEEK_MODEL:deepseek-chat}
+        model: ${DEEPSEEK_MODEL:deepseek-chat}
+        temperature: 0.3
+    anthropic:
+      api-key: ${ANTHROPIC_API_KEY:EMPTY}
+      chat:
+        model: ${ANTHROPIC_MODEL:claude-3-5-sonnet-latest}
+        temperature: 0.3
+    google:
+      genai:
+        api-key: ${GOOGLE_GENAI_API_KEY:EMPTY}
+        chat:
+          model: ${GOOGLE_GENAI_MODEL:gemini-2.0-flash}
           temperature: 0.3
 
 agent-insight:
@@ -88,6 +121,10 @@ logging:
     com.llm.insight: debug
     org.springframework.data.jpa: INFO
     org.hibernate.SQL: INFO
+    # MongoDB driver：连接异常（端口不可达/不是 mongod 协议）刷屏，关闭 monitor 线程日志
+    org.mongodb.driver.cluster: OFF
+    org.mongodb.driver.connection: OFF
+    org.mongodb.driver.protocol: OFF
 
 knife4j:
   enable: true
@@ -102,3 +139,20 @@ management:
   endpoint:
     health:
       show-details: when_authorized
+      # 关闭对 MongoDB / DataSource / Redis 的健康检查，避免下游黑洞端口阻塞 health 响应
+      group:
+        liveness:
+          include: ping
+        readiness:
+          include: ping
+  health:
+    mongo:
+      enabled: false
+    db:
+      enabled: false
+    redis:
+      enabled: false
+    diskspace:
+      enabled: false
+    ping:
+      enabled: true
