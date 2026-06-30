@@ -7,10 +7,9 @@ spring:
   application:
     name: agent-insight
 
-  # MongoDB（explorer 元数据存储，Spring Boot 4 已改为 spring.mongodb.*）
+  # MongoDB（Spring Boot 4：spring.mongodb.*；auto-index-creation 由 MongoConfig 显式开启）
   mongodb:
     uri: ${MONGODB_URI:mongodb://172.18.2.14:${MONGODB_PORT:27017}/agent_insight}
-    auto-index-creation: true
 
   data:
     redis:
@@ -27,7 +26,7 @@ spring:
 
   # 主数据源（HikariCP）：映射到 llm-agent 的 log_llm_* 表，用于 JPA 读 agent 运行轨迹
   datasource:
-    url: jdbc:mysql://${MYSQL_HOST}:${MYSQL_PORT:3306}/${MYSQL_DB:llm_agent}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai&useUnicode=true&characterEncoding=UTF-8
+    url: ${MYSQL_URL:jdbc:mysql://172.18.2.14:3306/llm_agent?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai&useUnicode=true&characterEncoding=UTF-8}
     username: ${MYSQL_USERNAME:llm_agent}
     password: ${MYSQL_PASSWORD:llm_agent}
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -146,7 +145,7 @@ management:
         readiness:
           include: ping
   health:
-    mongo:
+    mongodb:
       enabled: false
     db:
       enabled: false
