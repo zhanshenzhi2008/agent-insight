@@ -82,33 +82,33 @@ public class TraceAnalysisServiceImpl implements TraceAnalysisService {
 
             if (path.contains("/")) {
                 String[] parts = path.split("/");
-                String currentPath = "";
-                TaskTreeNodeDTO parent = null;
+                TaskTreeNodeDTO currentParent = null;
 
                 for (int i = 0; i < parts.length; i++) {
-                    String part = parts[i];
-                    currentPath = currentPath.isEmpty() ? part : currentPath + "/" + part;
+                    String currentPath = parts[i];
+                    String fullCurrentPath = i == 0 ? currentPath : parts[i - 1] + "/" + currentPath;
 
-                    if (!nodeMap.containsKey(currentPath)) {
-                        TaskTreeNodeDTO parentNode = parent == null
-                                ? TaskTreeNodeDTO.builder()
-                                        .name(currentPath)
-                                        .children(new ArrayList<>())
-                                        .build()
-                                : parent;
+                    if (!nodeMap.containsKey(fullCurrentPath)) {
+                        TaskTreeNodeDTO newNode = TaskTreeNodeDTO.builder()
+                                .name(currentPath)
+                                .children(new ArrayList<>())
+                                .build();
+                        nodeMap.put(fullCurrentPath, newNode);
 
-                        if (i == parts.length - 1) {
-                            parentNode = node;
-                        }
-
-                        nodeMap.put(currentPath, parentNode);
-                        if (parent == null) {
-                            roots.add(parentNode);
+                        if (currentParent == null) {
+                            roots.add(newNode);
                         } else {
-                            parent.getChildren().add(parentNode);
+                            currentParent.getChildren().add(newNode);
                         }
                     }
-                    parent = nodeMap.get(currentPath);
+                    currentParent = nodeMap.get(fullCurrentPath);
+                }
+
+                // Attach the actual task node as a child of the deepest intermediate node.
+                if (currentParent != null) {
+                    currentParent.getChildren().add(node);
+                } else {
+                    roots.add(node);
                 }
             } else {
                 nodeMap.put(path, node);
