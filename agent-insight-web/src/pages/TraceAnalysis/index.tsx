@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Table, Tag, Spin, message, Descriptions, Badge, Empty, Select } from 'antd';
+import { Card, Table, Tag, Spin, message, Descriptions, Badge, Empty, Select, Tabs } from 'antd';
+import { Tree } from 'antd';
+import type { TreeDataNode } from 'antd';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { traceApi } from '../../services/api';
-import type { TaskDetail, TaskStep } from '../../types';
+import type { TaskDetail, TaskStep, TaskTreeNode } from '../../types';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 
@@ -23,6 +25,8 @@ const TraceAnalysisPage: React.FC = () => {
   const [trace, setTrace] = useState<TaskDetail[]>([]);
   const [failedTasks, setFailedTasks] = useState<TaskDetail[]>([]);
   const [overview, setOverview] = useState<{ total: number; success: number; failed: number } | null>(null);
+  const [treeLoading, setTreeLoading] = useState(false);
+  const [treeData, setTreeData] = useState<TaskTreeNode[]>([]);
 
   const fetchTrace = async () => {
     if (!requestId) return;
@@ -49,7 +53,39 @@ const TraceAnalysisPage: React.FC = () => {
     }
   };
 
+  const fetchTree = async () => {
+    if (!requestId) return;
+    setTreeLoading(true);
+    try {
+      const res = await traceApi.getTree(requestId, agentName);
+      if (res.data.code === 0 && res.data.data?.roots) {
+        setTreeData(res.data.data.roots);
+      }
+    } finally {
+      setTreeLoading(false);
+    }
+  };
+
   useEffect(() => { fetchTrace(); }, [requestId, agentName]);
+  useEffect(() => { fetchTree(); }, [requestId, agentName]);
+
+  const toTreeDataNode = (node: TaskTreeNode): TreeDataNode => ({
+    key: node.id,
+    title: (
+      <span>
+        <Tag color={node.success ? 'green' : 'red'} style={{ marginRight: 6 }}>
+          {node.type}
+        </Tag>
+        {node.name}
+        {node.duration != null && (
+          <span style={{ color: '#888', marginLeft: 8, fontSize: 12 }}>
+            {(node.duration / 1000).toFixed(2)}s
+          </span>
+        )}
+      </span>
+    ),
+    children: node.children?.map(toTreeDataNode),
+  });
 
   const expandedRowRender = (record: TaskDetail) => {
     const stepColumns: ColumnsType<TaskStep> = [
@@ -145,7 +181,44 @@ const TraceAnalysisPage: React.FC = () => {
     },
   ];
 
-  if (loading) return <Spin size="large" style={{ display: 'block', margin: '100px auto' }} />;
+  if (loading && trace.length === 0) return <Spin size="large" style={{ display: 'block', margin: '100px auto' }} />;
+
+  const tableTab = (
+    <>
+      {overview && (
+        <div style={{ marginBottom: 16 }}>
+          <Tag color="blue">总计 {overview.total}</Tag>
+          <Tag color="green">成功 {overview.success}</Tag>
+          <Tag color="red">失败 {overview.failed}</Tag>
+        </div>
+      )}
+      <Table
+        columns={columns}
+        dataSource={trace}
+        rowKey="id"
+        expandable={{ expandedRowRender, expandRowByClick: true }}
+        pagination={false}
+        size="small"
+        scroll={{ y: 500 }}
+        locale={{ emptyText: <Empty description="暂无轨迹数据" /> }}
+      />
+    </>
+  );
+
+  const treeTab = treeLoading ? (
+    <Spin size="large" style={{ display: 'block', margin: '40px auto' }} />
+  ) : treeData.length === 0 ? (
+    <Empty description="暂无树形数据" style={{ marginTop: 60 }} />
+  ) : (
+    <div style={{ padding: '8px 0' }}>
+      <Tree
+        treeData={treeData.map(toTreeDataNode)}
+        defaultExpandAll
+        showLine={{ showLeafIcon: false }}
+        style={{ maxHeight: 600, overflow: 'auto' }}
+      />
+    </div>
+  );
 
   return (
     <div>
@@ -161,22 +234,12 @@ const TraceAnalysisPage: React.FC = () => {
           />
         }
       >
-        {overview && (
-          <div style={{ marginBottom: 16 }}>
-            <Tag color="blue">总计 {overview.total}</Tag>
-            <Tag color="green">成功 {overview.success}</Tag>
-            <Tag color="red">失败 {overview.failed}</Tag>
-          </div>
-        )}
-        <Table
-          columns={columns}
-          dataSource={trace}
-          rowKey="id"
-          expandable={{ expandedRowRender, expandRowByClick: true }}
-          pagination={false}
-          size="small"
-          scroll={{ y: 500 }}
-          locale={{ emptyText: <Empty description="暂无轨迹数据" /> }}
+        <Tabs
+          defaultActiveKey="table"
+          items={[
+            { key: 'table', label: '表格视图', children: tableTab },
+            { key: 'tree', label: '树视图', children: treeTab },
+          ]}
         />
       </Card>
 

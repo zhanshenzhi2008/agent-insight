@@ -1,7 +1,8 @@
-import axios from 'axios';
+import http from './http';
 
-const api = axios.create({
-  baseURL: '/api/v1/explorer',
+// Explorer API with /explorerHttp/v1/explorer base URL
+const explorerHttp = http.create({
+  baseURL: '/explorerHttp/v1/explorer',
   timeout: 60000,
 });
 
@@ -35,99 +36,99 @@ export interface ExecuteRequest {
 export const explorerApi = {
   // ===== 数据源 =====
   listDatasources: () =>
-    api.get<any, { data: { code: number; data: any[] } }>('/datasources'),
+    explorerHttp.get<any, { data: { code: number; data: any[] } }>('/datasources'),
 
   getDatasource: (id: string) =>
-    api.get<any, { data: { code: number; data: any } }>(`/datasources/${id}`),
+    explorerHttp.get<any, { data: { code: number; data: any } }>(`/datasources/${id}`),
 
   createDatasource: (data: any) =>
-    api.post<any, { data: { code: number; data: any } }>('/datasources', data),
+    explorerHttp.post<any, { data: { code: number; data: any } }>('/datasources', data),
 
   updateDatasource: (id: string, data: any) =>
-    api.put<any, { data: { code: number; data: any } }>(`/datasources/${id}`, data),
+    explorerHttp.put<any, { data: { code: number; data: any } }>(`/datasources/${id}`, data),
 
   deleteDatasource: (id: string) =>
-    api.delete<any, { data: { code: number; data: any } }>(`/datasources/${id}`),
+    explorerHttp.delete<any, { data: { code: number; data: any } }>(`/datasources/${id}`),
 
   testDatasourceConnection: (id: string) =>
-    api.post<any, { data: { code: number; data: any } }>(`/datasources/${id}/test`),
+    explorerHttp.post<any, { data: { code: number; data: any } }>(`/datasources/${id}/test`),
 
   listExternalTables: (id: string) =>
-    api.get<any, { data: { code: number; data: any[] } }>(`/datasources/${id}/tables`),
+    explorerHttp.get<any, { data: { code: number; data: any[] } }>(`/datasources/${id}/tables`),
 
   // ===== 表配置 =====
   listTables: (datasourceKey: string) =>
-    api.get<any, { data: { code: number; data: any[] } }>(`/tables`, {
+    explorerHttp.get<any, { data: { code: number; data: any[] } }>(`/tables`, {
       params: { datasourceKey },
     }),
 
   createTable: (data: any) =>
-    api.post<any, { data: { code: number; data: any } }>('/tables', data),
+    explorerHttp.post<any, { data: { code: number; data: any } }>('/tables', data),
 
   updateTable: (id: string, data: any) =>
-    api.put<any, { data: { code: number; data: any } }>(`/tables/${id}`, data),
+    explorerHttp.put<any, { data: { code: number; data: any } }>(`/tables/${id}`, data),
 
   deleteTable: (id: string) =>
-    api.delete<any, { data: { code: number; data: any } }>(`/tables/${id}`),
+    explorerHttp.delete<any, { data: { code: number; data: any } }>(`/tables/${id}`),
 
   discoverTables: (datasourceKey: string) =>
-    api.get<any, { data: { code: number; data: any[] } }>(`/tables/discover`, {
+    explorerHttp.get<any, { data: { code: number; data: any[] } }>(`/tables/discover`, {
       params: { datasourceKey },
     }),
 
   // ===== 列配置 =====
   listColumns: (datasourceKey: string, tableName: string) =>
-    api.get<any, { data: { code: number; data: any[] } }>(`/columns`, {
+    explorerHttp.get<any, { data: { code: number; data: any[] } }>(`/columns`, {
       params: { datasourceKey, tableName },
     }),
 
   saveColumns: (data: any[]) =>
-    api.post<any, { data: { code: number } }>('/columns', data),
+    explorerHttp.post<any, { data: { code: number } }>('/columns', data),
 
   updateColumn: (id: string, data: any) =>
-    api.put<any, { data: { code: number; data: any } }>(`/columns/${id}`, data),
+    explorerHttp.put<any, { data: { code: number; data: any } }>(`/columns/${id}`, data),
 
   deleteColumn: (id: string) =>
-    api.delete<any, { data: { code: number } }>(`/columns/${id}`),
+    explorerHttp.delete<any, { data: { code: number } }>(`/columns/${id}`),
 
   // ===== 查询模板（已保存查询） =====
   listQueryTemplates: (datasourceKey?: string) =>
-    api.get<any, { data: { code: number; data: any[] } }>('/queries', {
+    explorerHttp.get<any, { data: { code: number; data: any[] } }>('/queries', {
       params: { datasourceKey },
     }),
 
   getQueryTemplate: (id: string) =>
-    api.get<any, { data: { code: number; data: any } }>(`/queries/${id}`),
+    explorerHttp.get<any, { data: { code: number; data: any } }>(`/queries/${id}`),
 
   createQueryTemplate: (data: any) =>
-    api.post<any, { data: { code: number; data: any } }>('/queries', data),
+    explorerHttp.post<any, { data: { code: number; data: any } }>('/queries', data),
 
   updateQueryTemplate: (id: string, data: any) =>
-    api.put<any, { data: { code: number; data: any } }>(`/queries/${id}`, data),
+    explorerHttp.put<any, { data: { code: number; data: any } }>(`/queries/${id}`, data),
 
   deleteQueryTemplate: (id: string) =>
-    api.delete<any, { data: { code: number } }>(`/queries/${id}`),
+    explorerHttp.delete<any, { data: { code: number } }>(`/queries/${id}`),
 
   // ===== 查询执行 =====
   execute: (req: ExecuteRequest) =>
-    api.post<any, { data: { code: number; data: any; message?: string } }>('/query/execute', req),
+    explorerHttp.post<any, { data: { code: number; data: any; message?: string } }>('/query/execute', req),
 
   getQueryHistory: (params?: { datasourceKey?: string; tableName?: string; page?: number; size?: number }) =>
-    api.get<any, { data: { code: number; data: any[] } }>('/query/history', { params }),
+    explorerHttp.get<any, { data: { code: number; data: any[] } }>('/query/history', { params }),
 
   // ===== 智能分析（基于采样统计） =====
   analyzeColumns: (datasourceKey: string, tableName: string) =>
-    api.post<any, { data: { code: number; data: any[] } }>('/ai/analyze', null, {
+    explorerHttp.post<any, { data: { code: number; data: any[] } }>('/ai/analyze', null, {
       params: { datasourceKey, tableName },
     }),
 
   // AI 功能状态
   getAiStatus: () =>
-    api.get<any, { data: { code: number; data: any } }>('/ai/status'),
+    explorerHttp.get<any, { data: { code: number; data: any } }>('/ai/status'),
 
   // 更新 AI 配置
   updateAiConfig: (data: any) =>
-    api.put<any, { data: { code: number; data: any } }>('/ai/config', data),
+    explorerHttp.put<any, { data: { code: number; data: any } }>('/ai/config', data),
 
   // AI 增强单列分析
   analyzeColumnWithAi: (
@@ -137,7 +138,7 @@ export const explorerApi = {
     renderType: string,
     analysisData?: any,
   ) =>
-    api.post<any, { data: { code: number; data: any } }>(
+    explorerHttp.post<any, { data: { code: number; data: any } }>(
       '/ai/analyze/column',
       analysisData,
       { params: { columnName, displayName, dataType, renderType } },
@@ -145,11 +146,11 @@ export const explorerApi = {
 
   // AI 批量增强分析
   batchAnalyzeWithAi: (columns: any[]) =>
-    api.post<any, { data: { code: number; data: any[] } }>('/ai/analyze/batch', columns),
+    explorerHttp.post<any, { data: { code: number; data: any[] } }>('/ai/analyze/batch', columns),
 
   // 自然语言转查询
   nlQuery: (query: string, columns: any[]) =>
-    api.post<any, { data: { code: number; data: any } }>('/ai/nl-query', columns, {
+    explorerHttp.post<any, { data: { code: number; data: any } }>('/ai/nl-query', columns, {
       params: { query },
     }),
 
@@ -160,7 +161,7 @@ export const explorerApi = {
     tableName: string,
     userQuestion: string,
   ) =>
-    api.post<any, { data: { code: number; data: string } }>('/ai/summarize', {
+    explorerHttp.post<any, { data: { code: number; data: string } }>('/ai/summarize', {
       rows,
       columns,
       tableName,
@@ -169,7 +170,7 @@ export const explorerApi = {
 
   // 通用对话（测试模型）
   aiChat: (system: string, message: string) =>
-    api.post<any, { data: { code: number; data: string } }>('/ai/chat', { system, message }),
+    explorerHttp.post<any, { data: { code: number; data: string } }>('/ai/chat', { system, message }),
 };
 
 export default explorerApi;

@@ -14,6 +14,27 @@
 body {
   background-color: #f0f2f5;
   min-height: 100vh;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+/* Custom scrollbar styles */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
 }
 
 #root {
@@ -51,4 +72,10 @@ body {
 
 .highlighted-task-line {
   background-color: rgba(255, 235, 59, 0.3) !important;
+}
+
+/* Monaco editor line highlight for source mapping */
+.source-line-highlight {
+  background-color: rgba(22, 119, 255, 0.15) !important;
+  border-left: 3px solid #1677ff !important;
 }

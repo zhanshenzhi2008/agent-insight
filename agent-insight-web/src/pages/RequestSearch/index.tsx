@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Card, Input, Button, Select, DatePicker, Space, Tag, message } from 'antd';
+import { Table, Card, Input, Button, Select, DatePicker, Space, Tag, message, AutoComplete } from 'antd';
 import { SearchOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { requestApi } from '../../services/api';
@@ -30,6 +30,7 @@ const RequestSearchPage: React.FC = () => {
     startTime: undefined as string | undefined,
     endTime: undefined as string | undefined,
   });
+  const [agentOptions, setAgentOptions] = useState<{ value: string; label: string }[]>([]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -59,6 +60,21 @@ const RequestSearchPage: React.FC = () => {
   useEffect(() => {
     fetchData();
   }, [page, pageSize]);
+
+  useEffect(() => {
+    const fetchAgents = async () => {
+      try {
+        const res = await requestApi.instances(form.requestId || '');
+        if (res.data.code === 0) {
+          const names = [...new Set((res.data.data || []).map((a: any) => a.agentName).filter(Boolean))];
+          setAgentOptions(names.map((n) => ({ value: n, label: n })));
+        }
+      } catch {
+        // ignore
+      }
+    };
+    fetchAgents();
+  }, [form.requestId]);
 
   const columns: ColumnsType<RequestSummary> = [
     {
@@ -158,12 +174,18 @@ const RequestSearchPage: React.FC = () => {
           style={{ width: 200 }}
           allowClear
         />
-        <Input
+        <AutoComplete
           placeholder="Agent 名称"
           value={form.agentName}
-          onChange={(e) => setForm({ ...form, agentName: e.target.value })}
-          style={{ width: 160 }}
+          options={agentOptions}
+          onSearch={(v) => setForm({ ...form, agentName: v })}
+          onSelect={(v) => setForm({ ...form, agentName: v })}
+          onChange={(v) => setForm({ ...form, agentName: typeof v === 'string' ? v : v })}
+          style={{ width: 180 }}
           allowClear
+          filterOption={(input, option) =>
+            (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+          }
         />
         <Select
           placeholder="状态"

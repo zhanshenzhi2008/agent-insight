@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jmeterTestPlan version="5.6.3" jmeter="5.6.3" xmlns="jmeter">
+  <hashTree>
+    <!-- PT-01: 单 requestId 查询（仅 DB），目标 P99 < 500ms -->
+    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="PT-01: 单 requestId查询（仅DB）" enabled="true">
+      <stringProp name="TestPlan.comments">目标: P99 &lt; 500ms | 场景: 精确查询单个requestId的概览数据（仅查MySQL）</stringProp>
+      <boolProp name="TestPlan.functional_mode">false</boolProp>
+      <boolProp name="TestPlan.tearDown_on_shutdown">true</boolProp>
+      <boolProp name="TestPlan.serialize_threadgroups">false</boolProp>
+      <elementProp name="TestPlan.user_defined_variables" elementType="Arguments">
+        <collectionProp name="Arguments.arguments"/>
+      </elementProp>
+      <stringProp name="TestPlan.user_define_classpath"/>
+    </TestPlan>
+
+    <!-- HTTP 请求默认值 -->
+    <Arguments guiclass="ArgumentsPanel" testclass="Arguments" testname="全局变量" enabled="true">
+      <collectionProp name="Arguments.arguments">
+        <elementProp name="HOST" elementType="Argument">
+          <stringProp name="Argument.name">HOST</stringProp>
+          <stringProp name="Argument.value">localhost</stringProp>
+          <stringProp name="Argument.metadata">=</stringProp>
+        </elementProp>
+        <elementProp name="PORT" elementType="Argument">
+          <stringProp name="Argument.name">PORT</stringProp>
+          <stringProp name="Argument.value">9280</stringProp>
+          <stringProp name="Argument.metadata">=</stringProp>
+        </elementProp>
+        <elementProp name="REQUEST_ID" elementType="Argument">
+          <stringProp name="Argument.name">REQUEST_ID</stringProp>
+          <stringProp name="Argument.value">req_test_001</stringProp>
+          <stringProp name="Argument.metadata">=</stringProp>
+        </elementProp>
+      </collectionProp>
+    </Arguments>
+
+    <hashTree>
+      <!-- 单线程，循环 100 次，测量单请求性能 -->
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="PT-01 ThreadGroup" enabled="true">
+        <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControllerGui" testclass="LoopController" testname="Loop Controller">
+          <intProp name="LoopController.loops">100</intProp>
+          <boolProp name="LoopController.continue_forever">false</boolProp>
+          <stringProp name="LoopController.classname">org.apache.jmeter.control.LoopController</stringProp>
+        </elementProp>
+        <stringProp name="ThreadGroup.num_threads">1</stringProp>
+        <stringProp name="ThreadGroup.ramp_time">0</stringProp>
+        <boolProp name="ThreadGroup.scheduler">false</boolProp>
+        <stringProp name="ThreadGroup.duration"/>
+        <stringProp name="ThreadGroup.delay"/>
+        <boolProp name="ThreadGroup.same_user_on_next_iteration">true</boolProp>
+      </ThreadGroup>
+
+      <hashTree>
+        <!-- 获取概览数据（仅 DB） -->
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="GET /api/v1/requests/{requestId}/overview" enabled="true">
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments" enabled="true">
+            <collectionProp name="Arguments.arguments"/>
+          </elementProp>
+          <stringProp name="HTTPSampler.domain">${HOST}</stringProp>
+          <stringProp name="HTTPSampler.port">${PORT}</stringProp>
+          <stringProp name="HTTPSampler.protocol">http</stringProp>
+          <stringProp name="HTTPSampler.contentEncoding">UTF-8</stringProp>
+          <stringProp name="HTTPSampler.path">/api/v1/requests/${REQUEST_ID}/overview</stringProp>
+          <stringProp name="HTTPSampler.method">GET</stringProp>
+          <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+          <boolProp name="HTTPSampler.auto_redirects">false</boolProp>
+          <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+          <boolProp name="HTTPSampler.DO_MULTIPART_POST">false</boolProp>
+          <boolProp name="HTTPSampler.BROWSER_COMPATIBLE_MULTIPART">false</boolProp>
+          <stringProp name="HTTPSampler.implementation">HttpClient4</stringProp>
+          <boolProp name="HTTPSampler.image_parser">false</boolProp>
+          <boolProp name="HTTPSampler.concurrentPool">4</boolProp>
+          <boolProp name="HTTPSampler.console">false</boolProp>
+          <stringProp name="HTTPSampler.connect_timeout"/>
+          <stringProp name="HTTPSampler.response_timeout">10000</stringProp>
+        </HTTPSamplerProxy>
+
+        <hashTree>
+          <!-- 断言：响应时间 < 500ms -->
+          <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="响应时间断言: &lt; 500ms" enabled="true">
+            <collectionProp name="Asserion.test_strings"/>
+            <stringProp name="Assertion.custom_message">响应时间超过 500ms</stringProp>
+            <intProp name="Assertion.response_data_max_length">8192</intProp>
+            <intProp name="Assertion.test_type">2</intProp>
+            <doubleProp>
+              <name>Assertion.expectedResponseTime</name>
+              <value>500</value>
+              <unittestValue>0.0</unittestValue>
+            </doubleProp>
+          </ResponseAssertion>
+          <hashTree/>
+          <!-- 断言：code = 0 -->
+          <JSONPathAssertion guiclass="JSONPathAssertionGui" testclass="JSONPathAssertion" testname="code = 0" enabled="true">
+            <stringProp name="JSON_PATH">$.code</stringProp>
+            <stringProp name="JSON_EXPECT_VALID">true</stringProp>
+            <boolProp name="JSON_INVALID_IS_JUST_FALSE">false</boolProp>
+            <stringProp name="JSONPathAssertion.custom_message">响应 code 不为 0</stringProp>
+            <stringProp name="JSONPathAssertion.expected_value">0</stringProp>
+            <intProp name="JSONPathAssertion.json负向断言">0</intProp>
+          </JSONPathAssertion>
+          <hashTree/>
+        </hashTree>
+
+        <!-- 汇总报告 -->
+        <ResultCollector guiclass="StatGraphVisualizer" testclass="ResultCollector" testname="汇总报告" enabled="true">
+          <boolProp name="ResultCollector.error_logging">false</boolProp>
+          <objProp>
+            <name>saveConfig</name>
+            <value class="SaveService">
+              <boolProp name="saveTimestamp">false</boolProp>
+              <boolProp name="saveLatency">true</boolProp>
+              <boolProp name="saveSuccess">true</boolProp>
+              <boolProp name="saveEncoding">true</boolProp>
+              <boolProp name="saveAssertionResultsFailureMessage">true</boolProp>
+              <boolProp name="saveResponseData">false</boolProp>
+              <boolProp name="saveSamplerCounts">true</boolProp>
+            </value>
+          </objProp>
+          <stringProp name="filename"/>
+        </ResultCollector>
+        <hashTree/>
+      </hashTree>
+    </hashTree>
+  </hashTree>
+</jmeterTestPlan>

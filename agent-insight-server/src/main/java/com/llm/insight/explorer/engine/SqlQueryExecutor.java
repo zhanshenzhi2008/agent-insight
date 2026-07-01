@@ -35,7 +35,9 @@ public class SqlQueryExecutor implements QueryExecutor {
         List<Object> countParams = new ArrayList<>();
 
         if (request.getFreeSql() != null && !request.getFreeSql().isBlank()) {
-            sql = request.getFreeSql();
+            String freeSql = request.getFreeSql().trim();
+            validateFreeSql(freeSql);
+            sql = freeSql;
             countSql = buildCountSql(sql);
             countParams = new ArrayList<>(params);
         } else {
@@ -55,23 +57,27 @@ public class SqlQueryExecutor implements QueryExecutor {
             return builder.total(total).data(List.of()).build();
         }
 
+        // 分页安全检查
+        int safePageSize = request.getPageSize();
+        if (safePageSize <= 0) safePageSize = 20;
+        if (safePageSize > 5000) safePageSize = 5000; // 硬上限防止 OOM
+
         long total = jdbc.queryForObject(countSql, countParams.toArray(), Long.class);
 
-        // 分页
         sql = sql + " LIMIT ? OFFSET ?";
-        params.add(request.getPageSize());
-        params.add(request.getPage() * request.getPageSize());
+        params.add(safePageSize);
+        params.add(Math.max(0, request.getPage()) * safePageSize);
 
         List<Map<String, Object>> rows = jdbc.queryForList(sql, params.toArray());
 
-        int totalPages = request.getPageSize() > 0
-                ? (int) Math.ceil((double) total / request.getPageSize()) : 0;
+        int totalPages = safePageSize > 0
+                ? (int) Math.ceil((double) total / safePageSize) : 0;
 
         return builder
                 .data(rows)
                 .total(total)
                 .page(request.getPage())
-                .pageSize(request.getPageSize())
+                .pageSize(safePageSize)
                 .totalPages(totalPages)
                 .hasNext(request.getPage() < totalPages - 1)
                 .build();
@@ -247,6 +253,21 @@ public class SqlQueryExecutor implements QueryExecutor {
             sb.append("?");
         }
         return sb.toString();
+    }
+
+    /**
+     * 校验 FreeSql，阻止危险操作。
+     */
+    private void validateFreeSql(String sql) {
+        String upper = sql.toUpperCase().trim();
+        if (upper.startsWith("DROP") || upper.startsWith("DELETE") || upper.startsWith("TRUNCATE")
+                || upper.startsWith("INSERT") || upper.startsWith("UPDATE")
+                || upper.startsWith("ALTER") || upper.startsWith("CREATE")
+                || upper.startsWith("GRANT") || upper.startsWith("REVOKE")
+                || upper.startsWith("EXEC") || upper.startsWith("EXECUTE")
+                || upper.contains(";") || upper.contains("--")) {
+            throw new IllegalArgumentException("FreeSQL 不允许执行危险语句，仅支持 SELECT 查询");
+        }
     }
 
     record SqlSegment(String sql, List<Object> params) {}

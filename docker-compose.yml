@@ -1,0 +1,190 @@
+version: '3.8'
+
+# =============================================================================
+# Agent Insight docker-compose.yml
+# 一键启动完整开发/演示环境
+#
+# 使用方法:
+#   开发模式（前台）: docker-compose up
+#   开发模式（后台）: docker-compose up -d
+#   查看日志:        docker-compose logs -f agent-insight-backend
+#   停止:            docker-compose down
+#   重启:            docker-compose restart
+#   清理:            docker-compose down -v（删除数据卷）
+#
+# 前端访问: http://localhost:80
+# 后端 API: http://localhost:9280
+# Swagger:  http://localhost:9280/doc.html
+# =============================================================================
+
+services:
+  # ---------------------------------------------------------------------------
+  # MySQL 服务（主数据源，存储 llm-agent 日志表）
+  # ---------------------------------------------------------------------------
+  mysql:
+    image: mysql:8.0
+    container_name: agent-insight-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_PASSWORD:-root830i}
+      MYSQL_DATABASE: ${MYSQL_DB:-llm_agent}
+      MYSQL_USER: ${MYSQL_USERNAME:-llm_agent}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-llm_agent}
+      TZ: Asia/Shanghai
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      # 初始化脚本（首次启动时执行）
+      - ./docker/mysql/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-authentication-plugin=mysql_native_password
+      - --skip-ssl
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_PASSWORD:-root830i}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - agent-insight-net
+
+  # ---------------------------------------------------------------------------
+  # MongoDB 服务（explorer 元数据存储）
+  # ---------------------------------------------------------------------------
+  mongodb:
+    image: mongo:7.0
+    container_name: agent-insight-mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_DATABASE: ${MONGO_DB:-agent_insight}
+    ports:
+      - "${MONGODB_PORT:-27017}:27017"
+    volumes:
+      - mongodb_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - agent-insight-net
+
+  # ---------------------------------------------------------------------------
+  # Redis 服务（查询结果缓存）
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: agent-insight-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - agent-insight-net
+
+  # ---------------------------------------------------------------------------
+  # 后端服务（Spring Boot 4.1，端口 9280）
+  # ---------------------------------------------------------------------------
+  agent-insight-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: agent-insight-backend
+    restart: unless-stopped
+    ports:
+      - "${SERVER_PORT:-9280}:9280"
+    environment:
+      # Spring
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-default}
+      JAVA_OPTS: "-Xms512m -Xmx1024m -XX:+UseG1GC"
+      # MySQL（主数据源）
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_DB: ${MYSQL_DB:-llm_agent}
+      MYSQL_USERNAME: ${MYSQL_USERNAME:-llm_agent}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-llm_agent}
+      # MongoDB
+      MONGODB_URI: "mongodb://mongodb:27017/${MONGO_DB:-agent_insight}"
+      MONGODB_PORT: 27017
+      # Redis
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PWD: ${REDIS_PWD:-}
+      # AI 配置
+      AI_ENABLED: ${AI_ENABLED:-false}
+      AI_PROVIDER: ${AI_PROVIDER:-openai}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
+      # 日志路径（使用 Docker volume 挂载）
+      INSIGHT_LOG_ROOT: /app/project/data
+      INSIGHT_SCRIPT_ROOT: /app/project/data/system/agt
+    volumes:
+      # 日志文件目录（确保容器可写）
+      - agent-data:/app/project/data
+    depends_on:
+      mysql:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9280/actuator/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    networks:
+      - agent-insight-net
+
+  # ---------------------------------------------------------------------------
+  # 前端服务（React + Vite，端口 80）
+  # ---------------------------------------------------------------------------
+  agent-insight-frontend:
+    build:
+      context: ./agent-insight-web
+      dockerfile: ../Dockerfile.web
+      args:
+        VITE_API_BASE_URL: /api
+    container_name: agent-insight-frontend
+    restart: unless-stopped
+    ports:
+      - "${WEB_PORT:-80}:80"
+    depends_on:
+      - agent-insight-backend
+    networks:
+      - agent-insight-net
+
+# -----------------------------------------------------------------------------
+# 网络
+# -----------------------------------------------------------------------------
+networks:
+  agent-insight-net:
+    driver: bridge
+
+# -----------------------------------------------------------------------------
+# 数据卷（持久化存储）
+# -----------------------------------------------------------------------------
+volumes:
+  mysql_data:
+    driver: local
+  mongodb_data:
+    driver: local
+  redis_data:
+    driver: local
+  agent-data:
+    driver: local

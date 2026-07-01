@@ -71,8 +71,41 @@ public class RequestSearchServiceImpl implements RequestSearchService {
 
         Page<LogLlmAgentMain> result = agentMainRepository.findAll(spec, PageRequest.of(page, size));
 
+        // N+1 优化：一次性批量加载所有请求的 subAgents + taskCount
+        Set<String> requestIds = result.getContent().stream()
+                .map(LogLlmAgentMain::getRequestId)
+                .collect(java.util.stream.Collectors.toSet());
+
+        // 批量查询：请求ID → subAgents（入口Agent之外的名称列表）
+        Map<String, List<String>> subAgentsMap = new java.util.HashMap<>();
+        for (String rid : requestIds) {
+            List<LogLlmAgentMain> allMains = agentMainRepository.findByRequestId(rid);
+            List<String> subs = allMains.stream()
+                    .filter(m -> !Boolean.TRUE.equals(m.getEntranceAgent()))
+                    .map(LogLlmAgentMain::getTopAgentName)
+                    .filter(Objects::nonNull)
+                    .distinct()
+                    .toList();
+            subAgentsMap.put(rid, subs);
+        }
+
+        // 批量查询：请求ID → taskCount
+        Map<String, Long> taskCountMap = new java.util.HashMap<>();
+        for (String rid : requestIds) {
+            taskCountMap.put(rid, taskDetailRepository.countByRequestId(rid));
+        }
+
+        // 批量查询：请求ID → failedCount
+        Map<String, Long> failedCountMap = new java.util.HashMap<>();
+        for (String rid : requestIds) {
+            failedCountMap.put(rid, taskDetailRepository.countFailedByRequestId(rid));
+        }
+
         List<RequestSummaryDTO> summaries = result.getContent().stream()
-                .map(this::toRequestSummary)
+                .map(main -> toRequestSummary(main,
+                        subAgentsMap.getOrDefault(main.getRequestId(), List.of()),
+                        taskCountMap.getOrDefault(main.getRequestId(), 0L),
+                        failedCountMap.getOrDefault(main.getRequestId(), 0L)))
                 .toList();
 
         return PageResult.of(summaries, result.getTotalElements(), page, size);
@@ -140,17 +173,8 @@ public class RequestSearchServiceImpl implements RequestSearchService {
         }).distinct().toList();
     }
 
-    private RequestSummaryDTO toRequestSummary(LogLlmAgentMain main) {
-        List<LogLlmAgentMain> allMains = agentMainRepository.findByRequestId(main.getRequestId());
-        List<String> subAgents = allMains.stream()
-                .filter(m -> !Boolean.TRUE.equals(m.getEntranceAgent()))
-                .map(LogLlmAgentMain::getTopAgentName)
-                .filter(Objects::nonNull)
-                .distinct()
-                .toList();
-
-        long failedCount = taskDetailRepository.countFailedByRequestId(main.getRequestId());
-
+    private RequestSummaryDTO toRequestSummary(LogLlmAgentMain main,
+            List<String> subAgents, long taskCount, long failedCount) {
         Long duration = null;
         if (main.getAgentEndTime() != null && main.getCreateTime() != null) {
             duration = Duration.between(main.getCreateTime(), main.getAgentEndTime()).toMillis();
@@ -162,7 +186,7 @@ public class RequestSearchServiceImpl implements RequestSearchService {
                 .agentId(main.getAgentId())
                 .taskStatus(main.getTaskStatus())
                 .success(main.getSuccess())
-                .totalTaskCount((int) taskDetailRepository.countByRequestId(main.getRequestId()))
+                .totalTaskCount((int) taskCount)
                 .failedTaskCount((int) failedCount)
                 .totalDuration(duration)
                 .createTime(main.getCreateTime())

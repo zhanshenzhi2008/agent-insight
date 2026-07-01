@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, Input, Select, Spin, message, Tree, Empty, Button, Space, Tabs } from 'antd';
 import { useParams, useSearchParams } from 'react-router-dom';
-import Editor from '@monaco-editor/react';
+import Editor, { type Monaco } from '@monaco-editor/react';
+import type { editor } from 'monaco-editor';
 import { sourceApi } from '../../services/api';
 import type { ScriptFile, SourceLineMapping } from '../../types';
 
@@ -16,6 +17,10 @@ const SourceViewerPage: React.FC = () => {
   const [contentLoading, setContentLoading] = useState(false);
   const [mapping, setMapping] = useState<SourceLineMapping | null>(null);
   const [taskUniqueName, setTaskUniqueName] = useState('');
+
+  const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
+  const monacoRef = useRef<Monaco | null>(null);
+  const decorationRef = useRef<string[]>([]);
 
   const fetchScripts = async (agent: string) => {
     if (!agent.trim()) return;
@@ -50,6 +55,39 @@ const SourceViewerPage: React.FC = () => {
     }
   };
 
+  const applyLineDecorations = () => {
+    const editor = editorRef.current;
+    const monaco = monacoRef.current;
+    if (!editor || !monaco || !mapping) return;
+
+    const { startLine, endLine } = mapping;
+    const decorations: editor.IModelDeltaDecoration[] = [];
+
+    for (let line = startLine; line <= endLine; line++) {
+      decorations.push({
+        range: new monaco.Range(line, 1, line, 1),
+        options: {
+          isWholeLine: true,
+          className: 'source-line-highlight',
+          glyphMarginClassName: undefined,
+          overviewRuler: {
+            color: '#1677ff',
+            position: monaco.editor.OverviewRulerLane.Full,
+          },
+        },
+      });
+    }
+
+    decorationRef.current = editor.deltaDecorations(decorationRef.current, decorations);
+    editor.revealLineInCenter(startLine);
+  };
+
+  useEffect(() => {
+    if (mapping && editorRef.current) {
+      applyLineDecorations();
+    }
+  }, [mapping]);
+
   const handleMapping = async () => {
     if (!searchAgentName || !taskUniqueName.trim()) return;
     try {
@@ -61,9 +99,11 @@ const SourceViewerPage: React.FC = () => {
         }
       } else {
         message.info('未找到该任务的源码映射');
+        setMapping(null);
       }
     } catch (e) {
       message.error('映射查询失败');
+      setMapping(null);
     }
   };
 
@@ -131,6 +171,11 @@ const SourceViewerPage: React.FC = () => {
                   language="java"
                   value={sourceContent}
                   theme="vs-dark"
+                  onMount={(editor, monaco) => {
+                    editorRef.current = editor;
+                    monacoRef.current = monaco;
+                    if (mapping) applyLineDecorations();
+                  }}
                   options={{
                     readOnly: true,
                     lineNumbers: 'on',

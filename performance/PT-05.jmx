@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jmeterTestPlan version="5.6.3" jmeter="5.6.3" xmlns="jmeter">
+  <hashTree>
+    <!-- PT-05: Data Explorer 分页查询，目标 P99 < 1s（MySQL/PG）/< 2s（MongoDB） -->
+    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="PT-05: Data Explorer分页查询" enabled="true">
+      <stringProp name="TestPlan.comments">目标: P99 &lt; 1s(MySQL/PG)/&lt;2s(MongoDB) | 场景: 执行分页查询（带过滤和排序）</stringProp>
+      <boolProp name="TestPlan.functional_mode">false</boolProp>
+      <boolProp name="TestPlan.tearDown_on_shutdown">true</boolProp>
+      <boolProp name="TestPlan.serialize_threadgroups">false</boolProp>
+      <elementProp name="TestPlan.user_defined_variables" elementType="Arguments">
+        <collectionProp name="Arguments.arguments"/>
+      </elementProp>
+    </TestPlan>
+
+    <Arguments guiclass="ArgumentsPanel" testclass="Arguments" testname="全局变量" enabled="true">
+      <collectionProp name="Arguments.arguments">
+        <elementProp name="HOST" elementType="Argument">
+          <stringProp name="Argument.name">HOST</stringProp>
+          <stringProp name="Argument.value">localhost</stringProp>
+        </elementProp>
+        <elementProp name="PORT" elementType="Argument">
+          <stringProp name="Argument.name">PORT</stringProp>
+          <stringProp name="Argument.value">9280</stringProp>
+        </elementProp>
+        <elementProp name="TABLE_KEY" elementType="Argument">
+          <stringProp name="Argument.name">TABLE_KEY</stringProp>
+          <stringProp name="Argument.value">test_orders</stringProp>
+        </elementProp>
+      </collectionProp>
+    </Arguments>
+
+    <hashTree>
+      <!-- 10 线程，ramp-up 5s，循环 20 次 -->
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="PT-05 ThreadGroup" enabled="true">
+        <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControllerGui" testclass="LoopController" testname="Loop Controller">
+          <intProp name="LoopController.loops">20</intProp>
+          <boolProp name="LoopController.continue_forever">false</boolProp>
+        </elementProp>
+        <stringProp name="ThreadGroup.num_threads">10</stringProp>
+        <stringProp name="ThreadGroup.ramp_time">5</stringProp>
+        <boolProp name="ThreadGroup.scheduler">false</boolProp>
+      </ThreadGroup>
+
+      <hashTree>
+        <!-- POST /api/v1/explorer/query/execute -->
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="POST /api/v1/explorer/query/execute" enabled="true">
+          <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments" enabled="true">
+            <collectionProp name="Arguments.arguments">
+              <elementProp name="body" elementType="HTTPArgument">
+                <stringProp name="Argument.name">body</stringProp>
+                <stringProp name="Argument.value">{
+  "tableKey": "${TABLE_KEY}",
+  "page": 0,
+  "pageSize": 20,
+  "orders": [
+    { "field": "created_at", "direction": "DESC" }
+  ]
+}</stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+              </elementProp>
+            </collectionProp>
+          </elementProp>
+          <stringProp name="HTTPSampler.domain">${HOST}</stringProp>
+          <stringProp name="HTTPSampler.port">${PORT}</stringProp>
+          <stringProp name="HTTPSampler.protocol">http</stringProp>
+          <stringProp name="HTTPSampler.contentEncoding">UTF-8</stringProp>
+          <stringProp name="HTTPSampler.path">/api/v1/explorer/query/execute</stringProp>
+          <stringProp name="HTTPSampler.method">POST</stringProp>
+          <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+          <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+          <stringProp name="HTTPSampler.implementation">HttpClient4</stringProp>
+          <stringProp name="HTTPSampler.response_timeout">15000</stringProp>
+        </HTTPSamplerProxy>
+
+        <hashTree>
+          <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="响应时间 &lt; 1s" enabled="true">
+            <collectionProp name="Asserion.test_strings"/>
+            <stringProp name="Assertion.custom_message">响应时间超过 1s</stringProp>
+            <intProp name="Assertion.test_type">2</intProp>
+            <doubleProp>
+              <name>Assertion.expectedResponseTime</name>
+              <value>1000</value>
+            </doubleProp>
+          </ResponseAssertion>
+          <hashTree/>
+        </hashTree>
+
+        <ResultCollector guiclass="StatGraphVisualizer" testclass="ResultCollector" testname="汇总报告" enabled="true">
+          <boolProp name="ResultCollector.error_logging">false</boolProp>
+          <objProp>
+            <name>saveConfig</name>
+            <value class="SaveService">
+              <boolProp name="saveTimestamp">false</boolProp>
+              <boolProp name="saveLatency">true</boolProp>
+              <boolProp name="saveSuccess">true</boolProp>
+            </value>
+          </objProp>
+          <stringProp name="filename"/>
+        </ResultCollector>
+        <hashTree/>
+      </hashTree>
+    </hashTree>
+  </hashTree>
+</jmeterTestPlan>
