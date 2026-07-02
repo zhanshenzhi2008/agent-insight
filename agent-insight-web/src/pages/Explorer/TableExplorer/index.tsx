@@ -315,7 +315,7 @@ const TableExplorerPage: React.FC = () => {
       <Drawer
         title="列配置预览"
         placement="right"
-        width={400}
+        styles={{ wrapper: { width: 400 } }}
         open={configDrawer}
         onClose={() => setConfigDrawer(false)}
       >
@@ -344,7 +344,7 @@ const TableExplorerPage: React.FC = () => {
       <Drawer
         title="过滤条件"
         placement="right"
-        width={620}
+        styles={{ wrapper: { width: 620 } }}
         open={filterDrawer}
         onClose={() => setFilterDrawer(false)}
         extra={

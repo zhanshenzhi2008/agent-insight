@@ -108,21 +108,26 @@ const LlmAnalysisPage: React.FC = () => {
           </Row>
         )}
 
-        <Tabs defaultActiveKey="all">
-          <Tabs.TabPane tab={`全部（${calls.length}）`} key="all">
-            <Table columns={columns} dataSource={calls} rowKey="id" pagination={{ pageSize: 20 }} size="small" />
-          </Tabs.TabPane>
-          <Tabs.TabPane tab={`慢调用（${slowCalls.length}）`} key="slow">
-            {slowCalls.length === 0
+        <Tabs
+          defaultActiveKey="all"
+          items={[{
+            key: 'all',
+            label: `全部（${calls.length}）`,
+            children: <Table columns={columns} dataSource={calls} rowKey="id" pagination={{ pageSize: 20 }} size="small" />,
+          }, {
+            key: 'slow',
+            label: `慢调用（${slowCalls.length}）`,
+            children: slowCalls.length === 0
               ? <Empty description="无慢调用" />
-              : <Table columns={columns} dataSource={slowCalls} rowKey="id" pagination={false} size="small" />}
-          </Tabs.TabPane>
-          <Tabs.TabPane tab={`失败（${failedCalls.length}）`} key="failed">
-            {failedCalls.length === 0
+              : <Table columns={columns} dataSource={slowCalls} rowKey="id" pagination={false} size="small" />,
+          }, {
+            key: 'failed',
+            label: `失败（${failedCalls.length}）`,
+            children: failedCalls.length === 0
               ? <Empty description="无失败调用" />
-              : <Table columns={columns} dataSource={failedCalls} rowKey="id" pagination={false} size="small" />}
-          </Tabs.TabPane>
-        </Tabs>
+              : <Table columns={columns} dataSource={failedCalls} rowKey="id" pagination={false} size="small" />,
+          }]}
+        />
       </Card>
 
       <Modal

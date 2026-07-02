@@ -1,6 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import React from 'react';
 import DynamicTable from '../../components/DynamicTable/index';
 
 const mockResult = {
@@ -42,7 +41,7 @@ describe('DynamicTable', () => {
     render(<DynamicTable result={mockResult as any} />);
     expect(screen.getByText('ID')).toBeInTheDocument();
     expect(screen.getByText('Name')).toBeInTheDocument();
-    expect(screen.getByText('Email')).toBeInChild('Email');
+    expect(screen.getByText('Email')).toBeInTheDocument();
   });
 
   it('renders data rows with correct values', () => {

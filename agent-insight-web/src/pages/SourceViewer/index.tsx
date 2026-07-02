@@ -154,8 +154,10 @@ const SourceViewerPage: React.FC = () => {
             options={scripts.map(s => ({ value: s.fullPath, label: s.fileName }))}
           />
         }
-      >
-        <Tabs.TabPane tab="源码浏览" key="browse">
+        items={[{
+          key: 'browse',
+          label: '源码浏览',
+          children: (
           <div style={{ display: 'flex', height: 'calc(100vh - 250px)' }}>
             <div style={{ width: 200, borderRight: '1px solid #f0f0f0', overflow: 'auto', flexShrink: 0 }}>
               {loading ? <Spin style={{ margin: 20 }} /> : (
@@ -188,8 +190,9 @@ const SourceViewerPage: React.FC = () => {
               </Spin>
             </div>
           </div>
-        </Tabs.TabPane>
-      </Tabs>
+          ),
+        }]}
+      />
     </Card>
   );
 };

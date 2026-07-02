@@ -83,7 +83,7 @@ const AiInsightDrawer: React.FC<{
     <Drawer
       title={<><ThunderboltOutlined /> AI 列分析详情 — {column.columnName}</>}
       placement="right"
-      width={420}
+      styles={{ wrapper: { width: 420 } }}
       open={!!column}
       onClose={onClose}
       extra={

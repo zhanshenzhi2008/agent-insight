@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { Layout, Menu } from 'antd';
+import { Layout, Menu, App as AntdAppProvider } from 'antd';
 import {
   SearchOutlined, DatabaseOutlined, FileTextOutlined,
   ApiOutlined, CodeOutlined, AppstoreOutlined, TableOutlined, SettingOutlined
@@ -86,29 +86,37 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
 const App = () => (
   <BrowserRouter>
-    <AppLayout>
-      <Routes>
-        <Route path="/" element={<Navigate to="/search" replace />} />
+    <AntdAppProvider>
+      <AppLayout>
+        <Routes>
+          <Route path="/" element={<Navigate to="/search" replace />} />
 
-        {/* Agent Insight 分析模块 */}
-        <Route path="/search" element={<RequireAuth permission="view:requests"><RequestSearchPage /></RequireAuth>} />
-        <Route path="/overview" element={<RequireAuth permission="view:requests"><RequestOverviewPage /></RequireAuth>} />
-        <Route path="/overview/:requestId" element={<RequireAuth permission="view:requests"><RequestOverviewPage /></RequireAuth>} />
-        <Route path="/trace/:requestId" element={<RequireAuth permission="view:trace"><TraceAnalysisPage /></RequireAuth>} />
-        <Route path="/log/:requestId" element={<RequireAuth permission="view:logs"><LogViewerPage /></RequireAuth>} />
-        <Route path="/llm/:requestId" element={<RequireAuth permission="view:llm"><LlmAnalysisPage /></RequireAuth>} />
-        <Route path="/source" element={<RequireAuth permission="view:source"><SourceViewerPage /></RequireAuth>} />
-        <Route path="/source/:agentName" element={<RequireAuth permission="view:source"><SourceViewerPage /></RequireAuth>} />
+          {/* Agent Insight 分析模块 */}
+          <Route path="/search" element={<RequireAuth permission="view:requests"><RequestSearchPage /></RequireAuth>} />
+          <Route path="/overview" element={<RequireAuth permission="view:requests"><RequestOverviewPage /></RequireAuth>} />
+          <Route path="/overview/:requestId" element={<RequireAuth permission="view:requests"><RequestOverviewPage /></RequireAuth>} />
+          {/* 执行轨迹：列表页 + 详情页 */}
+          <Route path="/trace" element={<RequireAuth permission="view:trace"><TraceAnalysisPage /></RequireAuth>} />
+          <Route path="/trace/:requestId" element={<RequireAuth permission="view:trace"><TraceAnalysisPage /></RequireAuth>} />
+          {/* 日志查看：列表页 + 详情页 */}
+          <Route path="/log" element={<RequireAuth permission="view:logs"><LogViewerPage /></RequireAuth>} />
+          <Route path="/log/:requestId" element={<RequireAuth permission="view:logs"><LogViewerPage /></RequireAuth>} />
+          {/* LLM 分析：列表页 + 详情页 */}
+          <Route path="/llm" element={<RequireAuth permission="view:llm"><LlmAnalysisPage /></RequireAuth>} />
+          <Route path="/llm/:requestId" element={<RequireAuth permission="view:llm"><LlmAnalysisPage /></RequireAuth>} />
+          <Route path="/source" element={<RequireAuth permission="view:source"><SourceViewerPage /></RequireAuth>} />
+          <Route path="/source/:agentName" element={<RequireAuth permission="view:source"><SourceViewerPage /></RequireAuth>} />
 
-        {/* Data Explorer 模块（通用跨库查询） */}
-        <Route path="/explorer/query" element={<RequireAuth permission="explorer:query"><TableExplorerPage /></RequireAuth>} />
-        <Route path="/explorer/datasource" element={<RequireAuth permission="explorer:datasource"><DatasourcePage /></RequireAuth>} />
-        <Route path="/explorer/table" element={<RequireAuth permission="explorer:config"><TableConfigPage /></RequireAuth>} />
-        <Route path="/explorer/columns" element={<RequireAuth permission="explorer:config"><ColumnConfigPage /></RequireAuth>} />
-        <Route path="/explorer/template" element={<RequireAuth permission="explorer:query"><QueryTemplatePage /></RequireAuth>} />
-        <Route path="/explorer/ai-config" element={<RequireAuth permission="explorer:config"><AiConfigPage /></RequireAuth>} />
-      </Routes>
-    </AppLayout>
+          {/* Data Explorer 模块（通用跨库查询） */}
+          <Route path="/explorer/query" element={<RequireAuth permission="explorer:query"><TableExplorerPage /></RequireAuth>} />
+          <Route path="/explorer/datasource" element={<RequireAuth permission="explorer:datasource"><DatasourcePage /></RequireAuth>} />
+          <Route path="/explorer/table" element={<RequireAuth permission="explorer:config"><TableConfigPage /></RequireAuth>} />
+          <Route path="/explorer/columns" element={<RequireAuth permission="explorer:config"><ColumnConfigPage /></RequireAuth>} />
+          <Route path="/explorer/template" element={<RequireAuth permission="explorer:query"><QueryTemplatePage /></RequireAuth>} />
+          <Route path="/explorer/ai-config" element={<RequireAuth permission="explorer:config"><AiConfigPage /></RequireAuth>} />
+        </Routes>
+      </AppLayout>
+    </AntdAppProvider>
   </BrowserRouter>
 );
 
