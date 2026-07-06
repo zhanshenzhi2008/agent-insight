@@ -49,38 +49,46 @@ const TableConfigPage: React.FC = () => {
   }, [selectedDs]);
 
   const handleDiscover = async () => {
-    if (!selectedDs) return;
+    if (!selectedDs) {
+      message.warning('请先选择数据源');
+      return;
+    }
     setDiscovering(true);
     try {
       const res = await explorerApi.discoverTables(selectedDs);
-      if (res.data.code === 0) {
-        const externalTables = res.data.data || [];
-        const existingNames = tables.map(t => t.tableName);
-        const newOnes = externalTables
-          .filter((t: any) => !existingNames.includes(t.tableName))
-          .map((t: any) => ({
-            datasourceKey: selectedDs,
-            tableName: t.tableName,
-            displayName: t.tableName,
-            description: t.remark || '',
-            enabled: true,
-            pageSize: 20,
-            allowFreeQuery: false,
-          }));
-        if (newOnes.length === 0) {
-          message.info('所有表已配置');
-        } else {
-          // 批量导入
-          for (const t of newOnes) {
-            await explorerApi.createTable(t);
-          }
-          message.success(`已导入 ${newOnes.length} 个表`);
-          const res2 = await explorerApi.listTables(selectedDs);
-          if (res2.data.code === 0) setTables(res2.data.data || []);
+      if (res.data.code !== 0) {
+        message.error((res.data as any).message || '发现表失败');
+        return;
+      }
+      const externalTables = res.data.data || [];
+      if (externalTables.length === 0) {
+        message.info(`数据源 ${selectedDs} 下未发现任何表/集合`);
+        return;
+      }
+      const existingNames = tables.map(t => t.tableName);
+      const newOnes = externalTables
+        .filter((t: any) => !existingNames.includes(t.tableName))
+        .map((t: any) => ({
+          datasourceKey: selectedDs,
+          tableName: t.tableName,
+          displayName: t.tableName,
+          description: t.remark || '',
+          enabled: true,
+          pageSize: 20,
+          allowFreeQuery: false,
+        }));
+      if (newOnes.length === 0) {
+        message.info(`共发现 ${externalTables.length} 个表，均已配置`);
+      } else {
+        for (const t of newOnes) {
+          await explorerApi.createTable(t);
         }
+        message.success(`已导入 ${newOnes.length} 个表（共发现 ${externalTables.length} 个）`);
+        const res2 = await explorerApi.listTables(selectedDs);
+        if (res2.data.code === 0) setTables(res2.data.data || []);
       }
     } catch (e: any) {
-      message.error('发现表失败: ' + (e.response?.data?.message || ''));
+      message.error('发现表失败: ' + (e.response?.data?.message || e.message || ''));
     } finally {
       setDiscovering(false);
     }

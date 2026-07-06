@@ -5,7 +5,6 @@ import com.llm.insight.explorer.document.InsightColumnConfig;
 import com.llm.insight.explorer.document.InsightDatasource;
 import com.llm.insight.explorer.document.InsightTableConfig;
 import com.llm.insight.explorer.engine.DynamicDatasourceManager;
-import com.llm.insight.explorer.engine.QueryRouter;
 import com.llm.insight.explorer.service.ConfigService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -24,8 +23,6 @@ public class TableConfigController {
 
     private final ConfigService configService;
     private final DynamicDatasourceManager dsManager;
-    private final QueryRouter router;
-    private final javax.sql.DataSource javaSqlDataSource;
 
     @GetMapping
     @Operation(summary = "获取数据源下的所有表配置")
@@ -55,7 +52,7 @@ public class TableConfigController {
     }
 
     @GetMapping("/discover")
-    @Operation(summary = "自动发现外部数据库的表列表")
+    @Operation(summary = "自动发现外部数据库的表/集合列表")
     public ApiResponse<List<Map<String, Object>>> discoverTables(
             @RequestParam String datasourceKey) {
         InsightDatasource ds = configService.getDatasource(datasourceKey);
@@ -63,24 +60,21 @@ public class TableConfigController {
 
         try {
             dsManager.cacheDatasource(ds);
-            var executor = router.route(ds);
-            String tableName = "TABLE_NAME";
-            List<Map<String, Object>> tables = executor.discoverColumns(tableName, dsManager);
-            // SQL discoverColumns 实际上返回的是列信息，这里需要真正发现表名
-            // 用 JDBC metadata 获取表列表
-            List<Map<String, Object>> tableList = discoverTablesViaMetadata(ds);
-            return ApiResponse.ok(tableList);
+            String type = ds.getDatasourceType() == null ? "" : ds.getDatasourceType().toUpperCase();
+            if ("MONGODB".equals(type)) {
+                return ApiResponse.ok(discoverCollectionsViaMongo(ds));
+            }
+            return ApiResponse.ok(discoverTablesViaSqlMetadata(ds));
         } catch (Exception e) {
             return ApiResponse.error("发现失败: " + e.getMessage());
         }
     }
 
-    private List<Map<String, Object>> discoverTablesViaMetadata(InsightDatasource ds) {
-        try {
-            javax.sql.DataSource dataSource = dsManager.getSqlDataSource(ds);
-            java.sql.DatabaseMetaData md = dataSource.getConnection().getMetaData();
-            var rs = md.getTables(null, null, "%", new String[]{"TABLE"});
-            java.util.List<Map<String, Object>> tables = new java.util.ArrayList<>();
+    private List<Map<String, Object>> discoverTablesViaSqlMetadata(InsightDatasource ds) {
+        javax.sql.DataSource dataSource = dsManager.getSqlDataSource(ds);
+        java.util.List<Map<String, Object>> tables = new java.util.ArrayList<>();
+        try (var conn = dataSource.getConnection();
+             var rs = conn.getMetaData().getTables(null, null, "%", new String[]{"TABLE"})) {
             while (rs.next()) {
                 java.util.Map<String, Object> t = new java.util.LinkedHashMap<>();
                 t.put("tableName", rs.getString("TABLE_NAME"));
@@ -89,11 +83,24 @@ public class TableConfigController {
                 t.put("remark", rs.getString("REMARKS"));
                 tables.add(t);
             }
-            rs.close();
-            return tables;
-        } catch (Exception e) {
-            return List.of();
+        } catch (java.sql.SQLException e) {
+            throw new RuntimeException("JDBC metadata 获取表列表失败: " + e.getMessage(), e);
         }
+        return tables;
+    }
+
+    private List<Map<String, Object>> discoverCollectionsViaMongo(InsightDatasource ds) {
+        org.springframework.data.mongodb.core.MongoTemplate mongo = dsManager.getMongoTemplate(ds);
+        java.util.List<Map<String, Object>> result = new java.util.ArrayList<>();
+        for (String name : mongo.getCollectionNames()) {
+            java.util.Map<String, Object> t = new java.util.LinkedHashMap<>();
+            t.put("tableName", name);
+            t.put("schema", ds.getConnectionConfig() != null ? ds.getConnectionConfig().getDatabase() : null);
+            t.put("type", "COLLECTION");
+            t.put("remark", null);
+            result.add(t);
+        }
+        return result;
     }
 
 }
