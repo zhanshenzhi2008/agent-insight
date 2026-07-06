@@ -231,6 +231,74 @@ class DatasourceControllerTest {
         }
     }
 
+    // ─── POST /datasources/test (不存库，直接探测) ───────────────────────────────
+
+    @Nested
+    class TestConnectionInline {
+
+        @Test
+        @DisplayName("POST /datasources/test with valid config returns connected=true")
+        void testInlineSuccess() throws Exception {
+            DynamicDatasourceManager dsManager = mock(DynamicDatasourceManager.class);
+            DataSource mockDs = mock(DataSource.class);
+            Connection mockConn = mock(Connection.class);
+            Statement mockStmt = mock(Statement.class);
+
+            InsightDatasource ds = InsightDatasource.builder()
+                    .datasourceKey("inline_mysql").datasourceType("MYSQL")
+                    .connectionConfig(InsightDatasource.ConnectionConfig.builder()
+                            .host("172.18.2.10").port(3306).database("llm_agent")
+                            .username("readonly").password("s3cret").build())
+                    .build();
+
+            doNothing().when(dsManager).cacheDatasource(any());
+            when(dsManager.getSqlDataSource(any())).thenReturn(mockDs);
+            when(mockDs.getConnection()).thenReturn(mockConn);
+            when(mockConn.createStatement()).thenReturn(mockStmt);
+
+            ApiResponse<Map<String, Object>> resp =
+                    controller(null, dsManager, null).testConnectionInline(ds);
+
+            assertThat(resp.getCode()).isEqualTo(0);
+            assertThat(resp.getData().get("connected")).isEqualTo(true);
+            assertThat(resp.getData()).containsKey("responseTimeMs");
+        }
+
+        @Test
+        @DisplayName("POST /datasources/test propagates connection failure")
+        void testInlineFailure() {
+            DynamicDatasourceManager dsManager = mock(DynamicDatasourceManager.class);
+            InsightDatasource ds = InsightDatasource.builder()
+                    .datasourceKey("inline_bad").datasourceType("POSTGRESQL")
+                    .connectionConfig(InsightDatasource.ConnectionConfig.builder()
+                            .host("10.0.0.1").port(5432).database("llm").build())
+                    .build();
+
+            doThrow(new RuntimeException("Connection refused"))
+                    .when(dsManager).cacheDatasource(any());
+
+            ApiResponse<Map<String, Object>> resp =
+                    controller(null, dsManager, null).testConnectionInline(ds);
+
+            assertThat(resp.getCode()).isEqualTo(0);
+            assertThat(resp.getData().get("connected")).isEqualTo(false);
+            assertThat((String) resp.getData().get("error")).contains("Connection refused");
+        }
+
+        @Test
+        @DisplayName("POST /datasources/test rejects payload without connectionConfig")
+        void testInlineMissingConnectionConfig() {
+            InsightDatasource ds = InsightDatasource.builder()
+                    .datasourceKey("inline_empty").datasourceType("MYSQL").build();
+
+            ApiResponse<Map<String, Object>> resp =
+                    controller(null, null, null).testConnectionInline(ds);
+
+            assertThat(resp.getCode()).isEqualTo(-1);
+            assertThat(resp.getMessage()).contains("connectionConfig");
+        }
+    }
+
     // ─── TC-EX-07: 更新数据源配置 ──────────────────────────────────────────────
 
     @Nested

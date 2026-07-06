@@ -84,7 +84,7 @@ const RequestOverviewPage: React.FC = () => {
             <Statistic
               title="结果"
               value={data.success ? '成功' : '失败'}
-              valueStyle={{ color: data.success ? '#52c41a' : '#fa541c' }}
+              styles={{ content: { color: data.success ? '#52c41a' : '#fa541c' } }}
             />
           </Col>
           <Col span={6}><Statistic title="总任务数" value={data.totalTaskCount} /></Col>
@@ -92,7 +92,7 @@ const RequestOverviewPage: React.FC = () => {
             <Statistic
               title="失败任务"
               value={data.failedTaskCount}
-              valueStyle={{ color: data.failedTaskCount > 0 ? '#fa541c' : '#52c41a' }}
+              styles={{ content: { color: data.failedTaskCount > 0 ? '#fa541c' : '#52c41a' } }}
             />
           </Col>
         </Row>

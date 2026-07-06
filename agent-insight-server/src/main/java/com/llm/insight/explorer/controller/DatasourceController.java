@@ -79,11 +79,23 @@ public class DatasourceController {
     public ApiResponse<Map<String, Object>> testConnection(@PathVariable String id) {
         InsightDatasource ds = configService.getDatasourceById(id);
         if (ds == null) return ApiResponse.error("数据源不存在");
+        return ApiResponse.ok(probeConnection(ds));
+    }
 
+    @PostMapping("/test-connection")
+    @Operation(summary = "测试数据源连接（直接传配置，不入库）")
+    public ApiResponse<Map<String, Object>> testConnectionInline(@RequestBody InsightDatasource ds) {
+        if (ds == null || ds.getConnectionConfig() == null) {
+            return ApiResponse.error("缺少 connectionConfig");
+        }
+        // 脱敏不会到这里，密码为空字符串也照常探测（DB 允许匿名/无密码）
+        return ApiResponse.ok(probeConnection(ds));
+    }
+
+    private Map<String, Object> probeConnection(InsightDatasource ds) {
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("datasourceKey", ds.getDatasourceKey());
         result.put("datasourceType", ds.getDatasourceType());
-
         long start = System.currentTimeMillis();
         try {
             dsManager.cacheDatasource(ds);
@@ -98,13 +110,12 @@ public class DatasourceController {
             }
             result.put("connected", true);
             result.put("responseTimeMs", System.currentTimeMillis() - start);
-            return ApiResponse.ok(result);
         } catch (Exception e) {
             result.put("connected", false);
             result.put("error", e.getMessage());
             result.put("responseTimeMs", System.currentTimeMillis() - start);
-            return ApiResponse.ok(result);
         }
+        return result;
     }
 
     @GetMapping("/{id}/tables")

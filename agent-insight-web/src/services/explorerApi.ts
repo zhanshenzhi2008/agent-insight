@@ -53,6 +53,9 @@ export const explorerApi = {
   testDatasourceConnection: (id: string) =>
     explorerHttp.post<any, { data: { code: number; data: any } }>(`/explorer/datasources/${id}/test`),
 
+  testDatasourceByConfig: (data: any) =>
+    explorerHttp.post<any, { data: { code: number; data: any } }>(`/explorer/datasources/test-connection`, data),
+
   listExternalTables: (id: string) =>
     explorerHttp.get<any, { data: { code: number; data: any[] } }>(`/explorer/datasources/${id}/tables`),
 

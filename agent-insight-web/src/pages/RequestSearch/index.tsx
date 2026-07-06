@@ -63,8 +63,9 @@ const RequestSearchPage: React.FC = () => {
 
   useEffect(() => {
     const fetchAgents = async () => {
+      if (!form.requestId) return;
       try {
-        const res = await requestApi.instances(form.requestId || '');
+        const res = await requestApi.instances(form.requestId);
         if (res.data.code === 0) {
           const names = [...new Set((res.data.data || []).map((a: any) => a.agentName).filter(Boolean))];
           setAgentOptions(names.map((n) => ({ value: n, label: n })));
@@ -216,7 +217,7 @@ const RequestSearchPage: React.FC = () => {
       <Table
         columns={columns}
         dataSource={data}
-        rowKey="requestId"
+        rowKey={(record) => record.agentId ?? record.requestId}
         loading={loading}
         scroll={{ x: 1200 }}
         pagination={{

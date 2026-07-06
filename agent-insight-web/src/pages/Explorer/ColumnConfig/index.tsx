@@ -490,9 +490,9 @@ const ColumnConfigPage: React.FC = () => {
           {/* 统计栏 */}
           <Card style={{ marginTop: 8 }}>
             <Row gutter={16}>
-              <Col span={3}><Statistic title="字段总数" value={totalCount} valueStyle={{ color: '#1890ff', fontSize: 20 }} /></Col>
-              <Col span={3}><Statistic title="已启用" value={enabledCount} prefix={<CheckCircleOutlined />} valueStyle={{ color: '#52c41a', fontSize: 20 }} /></Col>
-              <Col span={3}><Statistic title="AI 增强" value={aiEnhancedCount} prefix={<ThunderboltOutlined />} valueStyle={{ color: '#722ed1', fontSize: 20 }} /></Col>
+              <Col span={3}><Statistic title="字段总数" value={totalCount} styles={{ content: { color: '#1890ff', fontSize: 20 } }} /></Col>
+              <Col span={3}><Statistic title="已启用" value={enabledCount} prefix={<CheckCircleOutlined />} styles={{ content: { color: '#52c41a', fontSize: 20 } }} /></Col>
+              <Col span={3}><Statistic title="AI 增强" value={aiEnhancedCount} prefix={<ThunderboltOutlined />} styles={{ content: { color: '#722ed1', fontSize: 20 } }} /></Col>
               <Col span={9} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 {/* AI 状态指示 */}
                 <Badge status={aiStatus?.enabled ? 'success' : 'default'}
