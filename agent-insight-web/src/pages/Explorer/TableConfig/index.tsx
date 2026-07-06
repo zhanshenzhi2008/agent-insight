@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Card, Table, Select, Button, Space, Tag, Modal, Form,
-  Input, Switch, InputNumber, message, Popconfirm, Typography, Divider
+  App, Card, Table, Select, Button, Space, Tag, Modal, Form,
+  Input, Switch, InputNumber, Popconfirm, Typography, Divider
 } from 'antd';
 import {
   PlusOutlined, DeleteOutlined, EditOutlined, ReloadOutlined,
@@ -32,6 +32,7 @@ const TableConfigPage: React.FC = () => {
   const [modal, setModal] = useState<{ open: boolean; editing?: TableConfig }>({ open: false });
   const [form] = Form.useForm();
   const [discovering, setDiscovering] = useState(false);
+  const { message } = App.useApp();
 
   useEffect(() => {
     explorerApi.listDatasources().then((r: any) => {
@@ -238,13 +239,13 @@ const TableConfigPage: React.FC = () => {
           <Divider />
           <Space style={{ display: 'flex' }} size="middle">
             <Form.Item name="pageSize" label="默认分页大小" style={{ width: 140 }}>
-              <InputNumber min={5} max={500} defaultValue={20} />
+              <InputNumber min={5} max={500} />
             </Form.Item>
             <Form.Item name="allowFreeQuery" label="允许自由SQL" valuePropName="checked">
               <Switch />
             </Form.Item>
             <Form.Item name="enabled" label="启用" valuePropName="checked">
-              <Switch defaultChecked />
+              <Switch />
             </Form.Item>
           </Space>
           <Space style={{ display: 'flex' }} size="middle">

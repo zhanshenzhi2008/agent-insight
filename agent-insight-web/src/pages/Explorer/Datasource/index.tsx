@@ -38,7 +38,9 @@ const DatasourcePage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [modal, setModal] = useState<{ open: boolean; editing?: Datasource }>({ open: false });
   const [testing, setTesting] = useState(false);
+  const [rowTesting, setRowTesting] = useState<string | null>(null);
   const [testResult, setTestResult] = useState<{ connected: boolean; message: string; responseTimeMs?: number } | null>(null);
+  const testResultRef = React.useRef<HTMLDivElement>(null);
   const [form] = Form.useForm();
   const { message } = App.useApp();
 
@@ -73,21 +75,41 @@ const DatasourcePage: React.FC = () => {
 
   const handleTestSaved = async (record: Datasource) => {
     if (!record.id) return;
+    setRowTesting(record.id);
     try {
       const res = await explorerApi.testDatasourceConnection(record.id);
       const payload: any = res.data;
       if (payload.code === 0) {
         const data = payload.data;
         if (data.connected) {
-          message.success(`连接成功 (${data.responseTimeMs}ms)`);
+          Modal.success({
+            title: '连接成功',
+            content: `${record.datasourceName} (${record.datasourceKey})\n耗时 ${data.responseTimeMs}ms`,
+            okText: '知道了',
+          });
+          message.success(`连接成功 (${data.responseTimeMs}ms)`, 6);
         } else {
-          message.error(`连接失败：${data.error || '未知错误'}`);
+          Modal.error({
+            title: '连接失败',
+            content: data.error || '未知错误',
+            okText: '知道了',
+          });
+          message.error(`连接失败：${data.error || '未知错误'}`, 6);
         }
       } else {
-        message.error(payload.message || '测试失败');
+        Modal.error({
+          title: '测试失败',
+          content: payload.message || '请求失败',
+          okText: '知道了',
+        });
+        message.error(payload.message || '测试失败', 6);
       }
     } catch (e: any) {
-      message.error(e.response?.data?.message || e.message || '测试失败');
+      const errMsg = e.response?.data?.message || e.message || '测试失败';
+      Modal.error({ title: '测试失败', content: errMsg, okText: '知道了' });
+      message.error(errMsg, 6);
+    } finally {
+      setRowTesting(null);
     }
   };
 
@@ -113,23 +135,24 @@ const DatasourcePage: React.FC = () => {
       const payload: any = res.data;
       if (payload.code === 0) {
         const data = payload.data;
-        setTestResult({
+        const result = {
           connected: !!data.connected,
           message: data.connected
             ? `连接成功（${data.responseTimeMs}ms）`
             : `连接失败：${data.error || '未知错误'}`,
           responseTimeMs: data.responseTimeMs,
-        });
-        if (data.connected) message.success(`连接成功 (${data.responseTimeMs}ms)`);
-        else message.error('连接失败');
+        };
+        setTestResult(result);
+        setTimeout(() => testResultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50);
       } else {
-        setTestResult({ connected: false, message: payload.message || '请求失败' });
-        message.error(payload.message || '测试失败');
+        const result = { connected: false, message: payload.message || '请求失败' };
+        setTestResult(result);
+        setTimeout(() => testResultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50);
       }
     } catch (e: any) {
       const errMsg = e.response?.data?.message || e.message || '测试失败';
       setTestResult({ connected: false, message: errMsg });
-      message.error(errMsg);
+      setTimeout(() => testResultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50);
     } finally {
       setTesting(false);
     }
@@ -198,7 +221,15 @@ const DatasourcePage: React.FC = () => {
         key: 'action',
         render: (_: any, r: Datasource) => (
           <Space>
-            <Button type="link" size="small" icon={<ThunderboltOutlined />} onClick={() => handleTestSaved(r)}>测试</Button>
+            <Button
+              type="link"
+              size="small"
+              icon={<ThunderboltOutlined />}
+              loading={rowTesting === r.id}
+              onClick={() => handleTestSaved(r)}
+            >
+              测试
+            </Button>
             <Button type="link" size="small" icon={<EditOutlined />} onClick={() => openEdit(r)} />
             <Popconfirm title="确认删除？会级联删除表/列配置" onConfirm={() => handleDelete(r.id!)}>
               <Button type="link" size="small" danger icon={<DeleteOutlined />} />
@@ -226,14 +257,24 @@ const DatasourcePage: React.FC = () => {
         okText="保存"
         cancelText="取消"
         footer={[
-          <Button
-            key="test"
-            icon={<ThunderboltOutlined />}
-            loading={testing}
-            onClick={handleTestConnection}
-          >
-            测试连接
-          </Button>,
+          <Space key="test-area">
+            <Button
+              icon={<ThunderboltOutlined />}
+              loading={testing}
+              onClick={handleTestConnection}
+            >
+              测试连接
+            </Button>
+            {testResult && !testing && (
+              <Tag
+                color={testResult.connected ? 'success' : 'error'}
+                icon={testResult.connected ? <CheckCircleOutlined /> : <CloseCircleOutlined />}
+                style={{ margin: 0 }}
+              >
+                {testResult.connected ? `成功 ${testResult.responseTimeMs}ms` : '失败'}
+              </Tag>
+            )}
+          </Space>,
           <Button key="cancel" onClick={() => setModal({ open: false })}>
             取消
           </Button>,
@@ -278,14 +319,17 @@ const DatasourcePage: React.FC = () => {
         </Form>
 
         {testResult && (
-          <Alert
-            style={{ marginTop: 8 }}
-            type={testResult.connected ? 'success' : 'error'}
-            showIcon
-            icon={testResult.connected ? <CheckCircleOutlined /> : <CloseCircleOutlined />}
-            title={testResult.message}
-            description={testResult.responseTimeMs != null ? `耗时 ${testResult.responseTimeMs}ms` : undefined}
-          />
+          <div ref={testResultRef}>
+            <Alert
+              style={{ marginTop: 12 }}
+              type={testResult.connected ? 'success' : 'error'}
+              showIcon
+              icon={testResult.connected ? <CheckCircleOutlined /> : <CloseCircleOutlined />}
+              title={testResult.message}
+              description={testResult.responseTimeMs != null ? `耗时 ${testResult.responseTimeMs}ms` : undefined}
+              closable={{ closeIcon: true, onClose: () => setTestResult(null) }}
+            />
+          </div>
         )}
       </Modal>
     </div>
