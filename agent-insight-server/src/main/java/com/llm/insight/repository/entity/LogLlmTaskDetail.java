@@ -29,9 +29,6 @@ public class LogLlmTaskDetail implements Serializable {
     @Column(name = "request_id", length = 64)
     private String requestId;
 
-    @Column(name = "chat_message_id")
-    private Long chatMessageId;
-
     @Column(name = "agent_name", length = 100)
     private String agentName;
 
@@ -55,9 +52,6 @@ public class LogLlmTaskDetail implements Serializable {
 
     @Column(name = "full_path", length = 1024)
     private String fullPath;
-
-    @Column(name = "dynamic_plan_detail_id")
-    private Long dynamicPlanDetailId;
 
     @Column(name = "task_index")
     private Integer taskIndex;

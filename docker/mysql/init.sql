@@ -1,4 +1,25 @@
 -- =============================================================================
+-- ⚠️ ⚠️ ⚠️  本文件已废弃 (DEPRECATED) — 2026-07-03  ⚠️ ⚠️ ⚠️
+-- =============================================================================
+-- 本文件创建的是 MySQL 上的 log_llm_* 4 张业务表。
+-- 真实数据源已变更：
+--   - log_llm_agent_main / log_llm_task_detail / log_llm_task_step /
+--     log_llm_http_request 实际存储在 **llm-agent 工程的 MongoDB** 内
+--   - 本工程不再创建、修改、备份这 4 张表
+--
+-- 详见：
+--   docs/00-revision-2026-07-03.md §1
+--   docs/01-SRS.md v0.3
+--
+-- 暂时保留原因：
+--   老 5 个 Service (LogViewer/TraceAnalysis/RequestSearch/LlmCall/Source)
+--   还在用 JPA Repository 访问这里，W4 切到 MongoQueryEngine 后即可删除。
+--
+-- 替代方案：
+--   - llm-agent 工程自行初始化自己的 Mongo collection
+--   - 本工程通过 templates/llm-agent/tables/*.json 表达元数据
+--   - 不再有任何本地 MySQL 业务表
+-- =============================================================================
 -- Agent Insight MySQL 初始化脚本
 -- 首次启动 docker-compose 时自动执行
 -- =============================================================================
@@ -11,23 +32,35 @@ USE `llm_agent`;
 
 -- ---------------------------------------------------------------------------
 -- log_llm_agent_main: Agent 实例表（入口 + 子 Agent）
+-- 注意：列必须与 agent-insight-server/.../LogLlmAgentMain.java 完全一致
+--       （由 EntitySchemaContractTest 强制守护）。
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `log_llm_agent_main` (
     `id`            BIGINT PRIMARY KEY AUTO_INCREMENT,
-    `agent_id`      VARCHAR(64) NOT NULL COMMENT 'Agent 实例 ID',
-    `request_id`    VARCHAR(128) NOT NULL COMMENT '请求唯一 ID',
-    `agent_name`    VARCHAR(128) COMMENT 'Agent 名称（显示用）',
-    `top_agent_name` VARCHAR(128) COMMENT '顶层 Agent 名称',
-    `entrance_agent` TINYINT(1) DEFAULT 0 COMMENT '是否入口 Agent',
-    `task_status`   INT COMMENT '任务状态（0=pending, 1=running, 2=success, 3=failed）',
-    `agent_status`  INT COMMENT 'Agent 状态（1=active, 2=completed）',
-    `success`       TINYINT(1) COMMENT '是否成功',
-    `create_time`   DATETIME COMMENT '创建时间',
-    `update_time`   DATETIME COMMENT '更新时间',
+    `biz_id`        VARCHAR(64) COMMENT '业务 ID',
+    `request_id`    VARCHAR(64) NOT NULL COMMENT '请求唯一 ID',
+    `agent_id`      BIGINT COMMENT 'Agent 实例 ID',
+    `top_agent_name` VARCHAR(100) COMMENT '顶层 Agent 名称',
+    `is_entrance_agent` BIT(1) COMMENT '是否入口 Agent',
+    `title`         VARCHAR(100) COMMENT '标题',
+    `description`   VARCHAR(1000) COMMENT '描述',
+    `task_status`   INT COMMENT '任务状态',
+    `agent_status`  INT COMMENT 'Agent 状态',
+    `shift_must_task` INT COMMENT '是否必须任务',
+    `agent_try_count` INT COMMENT 'Agent 尝试次数',
+    `task_try_count` INT COMMENT '任务尝试次数',
+    `task_index`    INT COMMENT '执行顺序',
+    `success`       BIT(1) COMMENT '是否成功',
+    `agent_result`  MEDIUMTEXT COMMENT 'Agent 结果',
     `agent_end_time` DATETIME COMMENT '结束时间',
+    `log_llm_agent_context_id` BIGINT COMMENT '关联 Agent 上下文 ID',
+    `final_task_detail_id` BIGINT COMMENT '最终任务详情 ID',
+    `create_by`     BIGINT NOT NULL COMMENT '创建人',
+    `create_time`   DATETIME(3) COMMENT '创建时间',
     INDEX `idx_request_id` (`request_id`),
-    INDEX `idx_create_time` (`create_time`),
-    INDEX `idx_top_agent_name` (`top_agent_name`)
+    INDEX `idx_agent_id` (`agent_id`),
+    INDEX `idx_biz_id` (`biz_id`),
+    INDEX `idx_create_time` (`create_time`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Agent 实例表';
 
 -- ---------------------------------------------------------------------------
@@ -94,13 +127,16 @@ CREATE TABLE IF NOT EXISTS `log_llm_http_request` (
 -- 插入示例数据（用于测试）
 -- ---------------------------------------------------------------------------
 INSERT INTO `log_llm_agent_main`
-    (`agent_id`, `request_id`, `agent_name`, `top_agent_name`, `entrance_agent`,
-     `task_status`, `agent_status`, `success`, `create_time`, `update_time`, `agent_end_time`)
+    (`agent_id`, `request_id`, `biz_id`, `top_agent_name`, `is_entrance_agent`,
+     `title`, `task_status`, `agent_status`, `success`, `create_by`,
+     `create_time`, `agent_end_time`)
 VALUES
-    ('agent_001', 'req_test_001', 'DataAnalysisAgent', 'DataAnalysisAgent', 1,
-     2, 2, 1, NOW(), NOW(), DATE_ADD(NOW(), INTERVAL 30 SECOND)),
-    ('agent_002', 'req_test_001', 'SubSearchAgent', 'DataAnalysisAgent', 0,
-     2, 2, 1, NOW(), NOW(), DATE_ADD(NOW(), INTERVAL 20 SECOND));
+    (1, 'req_test_001', 1, 'DataAnalysisAgent', b'1',
+     'demo', 2, 2, b'1', 1,
+     NOW(), DATE_ADD(NOW(), INTERVAL 30 SECOND)),
+    (2, 'req_test_001', 1, 'SubSearchAgent', b'0',
+     'demo', 2, 2, b'1', 1,
+     NOW(), DATE_ADD(NOW(), INTERVAL 20 SECOND));
 
 INSERT INTO `log_llm_task_detail`
     (`log_llm_agent_main_id`, `request_id`, `agent_name`, `task_name`, `task_unique_name`,

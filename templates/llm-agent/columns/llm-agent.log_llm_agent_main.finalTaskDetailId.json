@@ -1,0 +1,22 @@
+{
+  "_comment": "llm-agent 监控模板 v1.0.0 — log_llm_agent_main.finalTaskDetailId 列定义",
+  "columnKey": "llm-agent.log_llm_agent_main.finalTaskDetailId",
+  "tableKey": "llm-agent.log_llm_agent_main",
+  "columnName": "finalTaskDetailId",
+  "displayName": "最终 Task ID",
+  "description": "关联 log_llm_task_detail 表的最终任务 ID",
+  "dataType": "BIGINT",
+  "columnType": "FOREIGN_KEY",
+  "sortable": true,
+  "filterable": true,
+  "required": false,
+  "nullable": true,
+  "displayOrder": 16,
+  "width": 120,
+  "minWidth": 100,
+  "maxWidth": 160,
+  "formatConfig": { "type": "TEXT" },
+  "renderConfig": { "type": "TEXT" },
+  "filterConfig": { "type": "INPUT", "operator": "EQ" },
+  "version": "1.0.0"
+}

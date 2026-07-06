@@ -1,0 +1,29 @@
+{
+  "_comment": "llm-agent 监控模板 v1.0.0 — log_llm_agent_main.entranceAgent 列定义",
+  "columnKey": "llm-agent.log_llm_agent_main.entranceAgent",
+  "tableKey": "llm-agent.log_llm_agent_main",
+  "columnName": "entranceAgent",
+  "displayName": "是否入口",
+  "description": "是否入口 Agent（true=入口 / false=子 Agent）",
+  "dataType": "BOOLEAN",
+  "columnType": "DIMENSION",
+  "sortable": true,
+  "filterable": true,
+  "required": false,
+  "nullable": true,
+  "displayOrder": 7,
+  "width": 100,
+  "minWidth": 80,
+  "maxWidth": 140,
+  "formatConfig": { "type": "TEXT" },
+  "renderConfig": {
+    "type": "TAG",
+    "props": {
+      "trueLabel": "入口",
+      "falseLabel": "子 Agent",
+      "colorMap": { "true": "blue", "false": "default" }
+    }
+  },
+  "filterConfig": { "type": "INPUT", "operator": "EQ" },
+  "version": "1.0.0"
+}

@@ -9,6 +9,7 @@ import org.bson.Document;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.data.mongodb.core.query.Field;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Component;
 
@@ -58,6 +59,19 @@ public class MongoQueryExecutor implements QueryExecutor {
             }
         }
 
+        // 投影（v1.0 引入，2026-07-03 架构修订）
+        // 业务场景：按 requestId 查 log_llm_agent_main 时只需要 19 个字段中的 8 个，
+        //           全部返回会浪费带宽和前端渲染时间。
+        if (request.getSelectFields() != null && !request.getSelectFields().isEmpty()) {
+            List<String> fields = request.getSelectFields().stream()
+                    .filter(f -> f != null && !f.isBlank())
+                    .map(String::trim)
+                    .collect(Collectors.toList());
+            if (!fields.isEmpty()) {
+                query.fields().include(fields);
+            }
+        }
+
         List<Document> docs = mongo.find(query, Document.class, request.getTableName());
         List<Map<String, Object>> rows = docs.stream()
                 .map(this::documentToMap)
@@ -97,7 +111,11 @@ public class MongoQueryExecutor implements QueryExecutor {
         return columns;
     }
 
-    private Query buildQuery(QueryRequest request) {
+    /**
+     * 根据 QueryRequest 构建 Mongo {@link Query}。
+     * 纯函数（除了 Date.now），可单元测试。
+     */
+    Query buildQuery(QueryRequest request) {
         Query query = new Query();
 
         if (request.getFilters() != null) {
@@ -110,7 +128,11 @@ public class MongoQueryExecutor implements QueryExecutor {
         return query;
     }
 
-    private Criteria buildCriteria(QueryRequest.FilterCondition f) {
+    /**
+     * 根据 FilterCondition 构建 Mongo {@link Criteria}。
+     * 纯函数，可单元测试。详见 {@link MongoQueryExecutorCriteriaTest}。
+     */
+    Criteria buildCriteria(QueryRequest.FilterCondition f) {
         String field = f.getColumn();
         String op = f.getOperator().toUpperCase();
 

@@ -1,0 +1,26 @@
+{
+  "_comment": "llm-agent 监控模板 v1.0.0 — Agent 实例表元数据",
+  "_references": [
+    "docs/02b-template-spec.md §2, §4.1",
+    "docs/02b-template-spec.md §0 — tableKey 命名规范"
+  ],
+  "tableKey": "llm-agent.log_llm_agent_main",
+  "tableName": "log_llm_agent_main",
+  "datasourceKey": "prod-llm-agent-shard-1",
+  "logicalGroup": "llm-agent",
+  "displayName": "Agent 实例",
+  "description": "每次 Agent 调用的总览（入口 Agent + 子 Agent），每行 = 一个 Agent 实例",
+  "tableType": "COLLECTION",
+  "status": "ACTIVE",
+  "queryConfig": {
+    "defaultSortField": "createTime",
+    "defaultSortOrder": "desc",
+    "defaultPageSize": 20,
+    "maxPageSize": 500,
+    "enableExport": true,
+    "exportFormats": ["CSV", "JSON"]
+  },
+  "tags": ["v1-template", "llm-agent", "core"],
+  "createdBy": "template-import",
+  "version": "1.0.0"
+}

@@ -1,0 +1,23 @@
+{
+  "_comment": "llm-agent 监控模板 v1.0.0 — log_llm_agent_main.id 列定义",
+  "columnKey": "llm-agent.log_llm_agent_main.id",
+  "tableKey": "llm-agent.log_llm_agent_main",
+  "columnName": "id",
+  "displayName": "ID",
+  "description": "Mongo 业务主键（自增）",
+  "dataType": "BIGINT",
+  "columnType": "PRIMARY_KEY",
+  "sortable": true,
+  "filterable": true,
+  "required": true,
+  "nullable": false,
+  "displayOrder": 1,
+  "width": 80,
+  "minWidth": 60,
+  "maxWidth": 120,
+  "fixedPosition": "LEFT",
+  "formatConfig": { "type": "TEXT" },
+  "renderConfig": { "type": "TEXT" },
+  "filterConfig": { "type": "INPUT", "operator": "EQ" },
+  "version": "1.0.0"
+}

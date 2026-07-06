@@ -1,0 +1,28 @@
+{
+  "_comment": "llm-agent 监控模板 v1.0.0 — log_llm_agent_main.agentStatus 列定义",
+  "columnKey": "llm-agent.log_llm_agent_main.agentStatus",
+  "tableKey": "llm-agent.log_llm_agent_main",
+  "columnName": "agentStatus",
+  "displayName": "Agent 状态",
+  "description": "Agent 状态：1=active / 2=completed",
+  "dataType": "INT",
+  "columnType": "DIMENSION",
+  "sortable": true,
+  "filterable": true,
+  "required": false,
+  "nullable": true,
+  "displayOrder": 10,
+  "width": 100,
+  "minWidth": 80,
+  "maxWidth": 140,
+  "formatConfig": { "type": "TEXT" },
+  "renderConfig": {
+    "type": "TAG",
+    "props": {
+      "valueLabelMap": { "1": "active", "2": "completed" },
+      "colorMap": { "1": "blue", "2": "default" }
+    }
+  },
+  "filterConfig": { "type": "SELECT", "operator": "IN", "options": [1, 2] },
+  "version": "1.0.0"
+}

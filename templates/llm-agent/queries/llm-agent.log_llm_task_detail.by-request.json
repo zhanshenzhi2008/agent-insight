@@ -1,0 +1,29 @@
+{
+  "_comment": "llm-agent 监控模板 v1.0.0 — 按 requestId 查任务明细",
+  "queryKey": "llm-agent.log_llm_task_detail.by-request",
+  "queryName": "按 RequestId 查任务明细",
+  "tableKey": "llm-agent.log_llm_task_detail",
+  "queryType": "TEMPLATE",
+  "description": "查询某次请求的所有任务明细（按 taskIndex 升序），用于执行轨迹视图",
+  "mongoFilter": { "requestId": { "$eq": ":requestId" } },
+  "mongoSort": { "taskIndex": 1 },
+  "mongoLimit": 200,
+  "parameters": [
+    {
+      "name": "requestId",
+      "dataType": "VARCHAR",
+      "required": true,
+      "label": "Request ID",
+      "placeholder": "请输入 requestId"
+    }
+  ],
+  "resultConfig": {
+    "defaultColumns": [
+      "id", "requestId", "agentName", "taskName", "taskUniqueName",
+      "taskType", "taskIndex", "fullPath", "success", "resultType",
+      "createTime", "taskEndTime"
+    ]
+  },
+  "shareConfig": { "public": true },
+  "version": "1.0.0"
+}

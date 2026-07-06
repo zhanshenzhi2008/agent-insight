@@ -51,7 +51,4 @@ public class LogLlmTaskStep implements Serializable {
 
     @Column(name = "request_id", length = 64)
     private String requestId;
-
-    @Column(name = "chat_message_id")
-    private Long chatMessageId;
 }

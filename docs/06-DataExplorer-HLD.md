@@ -4,6 +4,7 @@
 |------|------|------|------|
 | v1.0 | 2026-06-26 | - | 初稿 |
 | v1.1 | 2026-06-26 | - | 与 02-HLD.md 交叉引用，统一版本为 Spring Boot 4.1 / Spring AI 2.0；技术选型与当前代码库一致 |
+| v1.2 | 2026-07-03 | - | ⚠️ **部分条款已修订**，请**先阅读** [`00-revision-2026-07-03.md`](./00-revision-2026-07-03.md)：① `log_llm_*` 真实存储是 MongoDB（非 MySQL）② v1.0 仅实现 MongoDB 执行器 ③ 引入 `logicalGroup + shardRole` 字段支持多 Mongo 切分 ④ llm-agent 模板包独立目录。本版本仅作为未来 MySQL/PG 实现参考。 |
 
 ---
 

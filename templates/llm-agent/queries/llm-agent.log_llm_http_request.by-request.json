@@ -1,0 +1,28 @@
+{
+  "_comment": "llm-agent 监控模板 v1.0.0 — 按 requestId 查 LLM 调用",
+  "queryKey": "llm-agent.log_llm_http_request.by-request",
+  "queryName": "按 RequestId 查 LLM 调用",
+  "tableKey": "llm-agent.log_llm_http_request",
+  "queryType": "TEMPLATE",
+  "description": "查询某次请求触发的所有 LLM API 调用",
+  "mongoFilter": { "requestId": { "$eq": ":requestId" } },
+  "mongoSort": { "createTime": 1 },
+  "mongoLimit": 200,
+  "parameters": [
+    {
+      "name": "requestId",
+      "dataType": "VARCHAR",
+      "required": true,
+      "label": "Request ID",
+      "placeholder": "请输入 requestId"
+    }
+  ],
+  "resultConfig": {
+    "defaultColumns": [
+      "id", "requestId", "agent", "modelType", "spendTime",
+      "promptTokens", "completionTokens", "successExpression", "createTime"
+    ]
+  },
+  "shareConfig": { "public": true },
+  "version": "1.0.0"
+}

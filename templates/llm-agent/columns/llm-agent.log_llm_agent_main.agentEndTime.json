@@ -1,0 +1,22 @@
+{
+  "_comment": "llm-agent 监控模板 v1.0.0 — log_llm_agent_main.agentEndTime 列定义",
+  "columnKey": "llm-agent.log_llm_agent_main.agentEndTime",
+  "tableKey": "llm-agent.log_llm_agent_main",
+  "columnName": "agentEndTime",
+  "displayName": "结束时间",
+  "description": "Agent 调用结束时间",
+  "dataType": "DATETIME",
+  "columnType": "SYSTEM",
+  "sortable": true,
+  "filterable": true,
+  "required": false,
+  "nullable": true,
+  "displayOrder": 19,
+  "width": 180,
+  "minWidth": 140,
+  "maxWidth": 240,
+  "formatConfig": { "type": "DATETIME", "pattern": "yyyy-MM-dd HH:mm:ss" },
+  "renderConfig": { "type": "DATETIME", "props": { "pattern": "yyyy-MM-dd HH:mm:ss" } },
+  "filterConfig": { "type": "DATE_RANGE", "operator": "BETWEEN" },
+  "version": "1.0.0"
+}

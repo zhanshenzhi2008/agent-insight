@@ -10,6 +10,13 @@
 
 Agent 执行链路分析平台。通过整合 **per-request 日志文件** + **结构化执行轨迹表** + **Agent 脚本源码**，提供源码级、执行轨迹级、LLM 调用级的三维分析能力。
 
+> ⚠️ **2026-07-03 重大架构修订**：本仓库已确认向**通用 BI 平台 + llm-agent 模板包**演进。
+> - `log_llm_*` 真实存储是 **llm-agent 工程的 MongoDB**，不在本工程库内
+> - 本工程**永远不修改** llm-agent 任何代码
+> - v1.0 仅实现 **MongoDB 执行器**；MySQL/PostgreSQL 留待 v1.1+
+> - 详细修订见 [`docs/00-revision-2026-07-03.md`](./docs/00-revision-2026-07-03.md)
+> - 文档版本对应：`01-SRS.md` v0.3 · `06-DataExplorer-HLD.md` v1.2
+
 ---
 
 ## 核心功能

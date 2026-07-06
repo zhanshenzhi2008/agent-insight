@@ -33,9 +33,6 @@ public class LogLlmAgentMain implements Serializable {
     @Column(name = "request_id", length = 64)
     private String requestId;
 
-    @Column(name = "chat_message_id")
-    private Long chatMessageId;
-
     @Column(name = "agent_id")
     private Long agentId;
 

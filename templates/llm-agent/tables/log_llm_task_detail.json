@@ -1,0 +1,25 @@
+{
+  "_comment": "llm-agent 监控模板 v1.0.0 — 任务明细表元数据",
+  "_references": [
+    "docs/02b-template-spec.md §2, §4.2"
+  ],
+  "tableKey": "llm-agent.log_llm_task_detail",
+  "tableName": "log_llm_task_detail",
+  "datasourceKey": "prod-llm-agent-shard-1",
+  "logicalGroup": "llm-agent",
+  "displayName": "任务明细",
+  "description": "Agent 内部每个 task 的输入输出（按 taskIndex 排序），每行 = Agent 脚本中一个执行单元",
+  "tableType": "COLLECTION",
+  "status": "ACTIVE",
+  "queryConfig": {
+    "defaultSortField": "taskIndex",
+    "defaultSortOrder": "asc",
+    "defaultPageSize": 50,
+    "maxPageSize": 1000,
+    "enableExport": true,
+    "exportFormats": ["CSV", "JSON"]
+  },
+  "tags": ["v1-template", "llm-agent", "core"],
+  "createdBy": "template-import",
+  "version": "1.0.0"
+}

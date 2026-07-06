@@ -1,0 +1,29 @@
+{
+  "_comment": "llm-agent 监控模板 v1.0.0 — log_llm_agent_main.success 列定义（关键监控项）",
+  "columnKey": "llm-agent.log_llm_agent_main.success",
+  "tableKey": "llm-agent.log_llm_agent_main",
+  "columnName": "success",
+  "displayName": "成功",
+  "description": "是否成功",
+  "dataType": "BOOLEAN",
+  "columnType": "DIMENSION",
+  "sortable": true,
+  "filterable": true,
+  "required": false,
+  "nullable": true,
+  "displayOrder": 11,
+  "width": 80,
+  "minWidth": 60,
+  "maxWidth": 120,
+  "formatConfig": { "type": "TEXT" },
+  "renderConfig": {
+    "type": "TAG",
+    "props": {
+      "trueLabel": "成功",
+      "falseLabel": "失败",
+      "colorMap": { "true": "green", "false": "red" }
+    }
+  },
+  "filterConfig": { "type": "INPUT", "operator": "EQ" },
+  "version": "1.0.0"
+}

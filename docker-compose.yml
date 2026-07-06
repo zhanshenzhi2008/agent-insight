@@ -15,11 +15,20 @@ version: '3.8'
 # 前端访问: http://localhost:80
 # 后端 API: http://localhost:9280
 # Swagger:  http://localhost:9280/doc.html
+#
+# ⚠️ 2026-07-03 架构修订：
+#   - `mysql` service 已标记 DEPRECATED，仅供老 Service 兜底
+#   - 业务表 log_llm_* 真实存储在 llm-agent 工程的 MongoDB
+#   - 详见 docs/00-revision-2026-07-03.md
+#   - W4 老 Service 切到 MongoQueryEngine 后，本 service 即可删除
 # =============================================================================
 
 services:
   # ---------------------------------------------------------------------------
-  # MySQL 服务（主数据源，存储 llm-agent 日志表）
+  # ⚠️ DEPRECATED: MySQL 服务（主数据源，存储 llm-agent 日志表）
+  #   仅供 W4 前老 5 个 Service（JPA Repository）兜底，W4 后可安全删除
+  #   log_llm_* 表的真实存储已迁移至 llm-agent 工程的 MongoDB
+  #   详见 docs/00-revision-2026-07-03.md
   # ---------------------------------------------------------------------------
   mysql:
     image: mysql:8.0
@@ -52,7 +61,10 @@ services:
       - agent-insight-net
 
   # ---------------------------------------------------------------------------
-  # MongoDB 服务（explorer 元数据存储）
+  # MongoDB 服务（元数据存储 + llm-agent 业务数据查询）
+  #   - insight_* 元数据集合（datasource / table_config / column_config 等）
+  #   - W2+ 通过 MongoQueryEngine 动态查询外部 llm-agent Mongo
+  #   - 不挂载初始化脚本，数据由 templates/llm-agent/ 导入
   # ---------------------------------------------------------------------------
   mongodb:
     image: mongo:7.0
@@ -108,7 +120,7 @@ services:
       # Spring
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-default}
       JAVA_OPTS: "-Xms512m -Xmx1024m -XX:+UseG1GC"
-      # MySQL（主数据源）
+      # ⚠️ DEPRECATED: MySQL 仅供 W4 前老 Service 兜底，详见 docs/00-revision-2026-07-03.md
       MYSQL_HOST: mysql
       MYSQL_PORT: 3306
       MYSQL_DB: ${MYSQL_DB:-llm_agent}

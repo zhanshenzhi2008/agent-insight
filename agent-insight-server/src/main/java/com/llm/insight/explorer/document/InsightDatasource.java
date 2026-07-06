@@ -28,6 +28,25 @@ public class InsightDatasource {
     /** MYSQL / POSTGRESQL / MONGODB */
     private String datasourceType;
 
+    /**
+     * 逻辑分组（v1.0 引入，2026-07-03 架构修订）
+     * <p>同 logicalGroup 下可有多个物理实例（PRIMARY / REPLICA / SHARD-N）。
+     * <p>命名规范：{@code {env}-{system}} 形式，kebab-case，如 {@code llm-agent}。
+     * <p>MongoDB 模板包必填。
+     */
+    private String logicalGroup;
+
+    /**
+     * 物理角色（v1.0 引入）
+     * <ul>
+     *   <li>{@code PRIMARY}：主实例（读写）</li>
+     *   <li>{@code REPLICA}：副本（只读）</li>
+     *   <li>{@code SHARD-N}：分片 N</li>
+     * </ul>
+     * <p>默认 {@code PRIMARY}。
+     */
+    private String shardRole;
+
     /** ACTIVE / INACTIVE / ERROR */
     private String status;
 
@@ -39,6 +58,12 @@ public class InsightDatasource {
 
     /** 允许查询的表名列表（空=全部允许） */
     private java.util.List<String> allowedTables;
+
+    /**
+     * 允许查询的 collection 名列表（v1.0 引入，Mongo 专用）
+     * <p>与 {@link #allowedTables} 区别：本字段优先匹配 Mongo，缺省回退到 allowedTables。
+     */
+    private java.util.List<String> allowedCollections;
 
     /** 禁止查询的表名列表 */
     private java.util.List<String> deniedTables;

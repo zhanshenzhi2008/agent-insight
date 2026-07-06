@@ -14,6 +14,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
+/**
+ * Unit tests for {@link QueryController}.
+ * Covers TC-EX-20 ~ TC-EX-32 (Data Explorer: dynamic query).
+ *
+ * 注：原文件 line 17-34 有一个重复的 helper-only 空 class，现已合并：
+ *      - colMeta/filter/sort 三个 helper 移到下方唯一 class 内
+ *      - controller() helper 在下方重复声明（同名/同参），JVM 允许多个文件 / 跨 class 不冲突
+ *      - 把第一段删除以消除"两个同名顶层类"问题
+ */
 class QueryControllerTest {
 
     private QueryController controller(QueryService queryService, MongoTemplate mongoTemplate) {
@@ -30,16 +39,6 @@ class QueryControllerTest {
 
     private static QueryRequest.SortCondition sort(String field, String direction) {
         return QueryRequest.SortCondition.builder().field(field).direction(direction).build();
-    }
-
-/**
- * Unit tests for {@link QueryController}.
- * Covers TC-EX-20 ~ TC-EX-32 (Data Explorer: dynamic query).
- */
-class QueryControllerTest {
-
-    private QueryController controller(QueryService queryService, MongoTemplate mongoTemplate) {
-        return new QueryController(queryService, mongoTemplate);
     }
 
     // ─── TC-EX-20: 基础分页查询 ──────────────────────────────────────────────

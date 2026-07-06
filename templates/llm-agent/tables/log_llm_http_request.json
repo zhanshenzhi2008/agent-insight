@@ -1,0 +1,25 @@
+{
+  "_comment": "llm-agent 监控模板 v1.0.0 — LLM HTTP 调用表元数据",
+  "_references": [
+    "docs/02b-template-spec.md §2, §4.4"
+  ],
+  "tableKey": "llm-agent.log_llm_http_request",
+  "tableName": "log_llm_http_request",
+  "datasourceKey": "prod-llm-agent-shard-1",
+  "logicalGroup": "llm-agent",
+  "displayName": "LLM HTTP 调用",
+  "description": "每次 LLM API 调用的请求体/响应体/耗时/Token 消耗，每行 = 一次 LLM 调用",
+  "tableType": "COLLECTION",
+  "status": "ACTIVE",
+  "queryConfig": {
+    "defaultSortField": "spendTime",
+    "defaultSortOrder": "desc",
+    "defaultPageSize": 50,
+    "maxPageSize": 1000,
+    "enableExport": true,
+    "exportFormats": ["CSV", "JSON"]
+  },
+  "tags": ["v1-template", "llm-agent", "llm-cost"],
+  "createdBy": "template-import",
+  "version": "1.0.0"
+}

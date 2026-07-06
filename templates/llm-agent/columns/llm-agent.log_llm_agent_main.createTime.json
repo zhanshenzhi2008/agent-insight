@@ -1,0 +1,22 @@
+{
+  "_comment": "llm-agent 监控模板 v1.0.0 — log_llm_agent_main.createTime 列定义（常用 sort + filter）",
+  "columnKey": "llm-agent.log_llm_agent_main.createTime",
+  "tableKey": "llm-agent.log_llm_agent_main",
+  "columnName": "createTime",
+  "displayName": "创建时间",
+  "description": "创建时间（ISODate）",
+  "dataType": "DATETIME",
+  "columnType": "SYSTEM",
+  "sortable": true,
+  "filterable": true,
+  "required": true,
+  "nullable": false,
+  "displayOrder": 18,
+  "width": 180,
+  "minWidth": 140,
+  "maxWidth": 240,
+  "formatConfig": { "type": "DATETIME", "pattern": "yyyy-MM-dd HH:mm:ss" },
+  "renderConfig": { "type": "DATETIME", "props": { "pattern": "yyyy-MM-dd HH:mm:ss" } },
+  "filterConfig": { "type": "DATE_RANGE", "operator": "BETWEEN" },
+  "version": "1.0.0"
+}
