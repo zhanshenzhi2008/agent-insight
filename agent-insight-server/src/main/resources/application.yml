@@ -24,11 +24,14 @@ spring:
           max-idle: 4
           min-idle: 1
 
-  # 主数据源（HikariCP）：映射到 llm-agent 的 log_llm_* 表，用于 JPA 读 agent 运行轨迹
+  # 主数据源（HikariCP）：agent-insight 自身业务库。
+  # 包含两张自建业务表（insight_ai_model 等）+ 未来扩展。
+  # 注：log_llm_* 轨迹表由独立的 jdbc-template 连接 external-biz 业务库，
+  #     不在主数据源里（按业务隔离原则，避免 schema 跨界）。
   datasource:
-    url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/${MYSQL_DB:llm_agent}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai&useUnicode=true&characterEncoding=UTF-8
-    username: ${MYSQL_USERNAME:llm_agent}
-    password: ${MYSQL_PASSWORD:llm_agent}
+    url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/agent_insight?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai&useUnicode=true&characterEncoding=UTF-8
+    username: ${MYSQL_USERNAME:}
+    password: ${MYSQL_PASSWORD:}
     driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
       pool-name: AgentInsightHikariPool
@@ -103,7 +106,10 @@ agent-insight:
   cache:
     analysis-ttl-minutes: 30
     index-ttl-hours: 24
-  # AI 功能配置
+  security:
+    # AES-256-GCM 加密密钥（32 字节 base64 编码），用于 insight_ai_model.token_encrypted 等敏感字段。
+    # ⚠️ 这是 dev 占位 key（openssl rand -base64 32 一次性生成），正式部署必须通过 ENV INSIGHT_ENCRYPTION_KEY 覆盖。
+    encryption-key: ${INSIGHT_ENCRYPTION_KEY:IcZ+z06pZwNgemWM7jB7jJH8uVbpJo9GlWNGylQuFHs=}
   ai:
     enabled: ${AI_ENABLED:false}
     provider: ${AI_PROVIDER:openai}

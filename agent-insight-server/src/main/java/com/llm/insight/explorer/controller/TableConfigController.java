@@ -4,7 +4,6 @@ import com.llm.insight.common.ApiResponse;
 import com.llm.insight.explorer.document.InsightColumnConfig;
 import com.llm.insight.explorer.document.InsightDatasource;
 import com.llm.insight.explorer.document.InsightTableConfig;
-import com.llm.insight.explorer.engine.DynamicDatasourceManager;
 import com.llm.insight.explorer.service.ConfigService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -22,7 +21,6 @@ import javax.sql.DataSource;
 public class TableConfigController {
 
     private final ConfigService configService;
-    private final DynamicDatasourceManager dsManager;
 
     @GetMapping
     @Operation(summary = "获取数据源下的所有表配置")
@@ -59,48 +57,10 @@ public class TableConfigController {
         if (ds == null) return ApiResponse.error("数据源不存在");
 
         try {
-            dsManager.cacheDatasource(ds);
-            String type = ds.getDatasourceType() == null ? "" : ds.getDatasourceType().toUpperCase();
-            if ("MONGODB".equals(type)) {
-                return ApiResponse.ok(discoverCollectionsViaMongo(ds));
-            }
-            return ApiResponse.ok(discoverTablesViaSqlMetadata(ds));
+            return ApiResponse.ok(configService.discoverTables(ds));
         } catch (Exception e) {
             return ApiResponse.error("发现失败: " + e.getMessage());
         }
-    }
-
-    private List<Map<String, Object>> discoverTablesViaSqlMetadata(InsightDatasource ds) {
-        javax.sql.DataSource dataSource = dsManager.getSqlDataSource(ds);
-        java.util.List<Map<String, Object>> tables = new java.util.ArrayList<>();
-        try (var conn = dataSource.getConnection();
-             var rs = conn.getMetaData().getTables(null, null, "%", new String[]{"TABLE"})) {
-            while (rs.next()) {
-                java.util.Map<String, Object> t = new java.util.LinkedHashMap<>();
-                t.put("tableName", rs.getString("TABLE_NAME"));
-                t.put("schema", rs.getString("TABLE_SCHEM"));
-                t.put("type", rs.getString("TABLE_TYPE"));
-                t.put("remark", rs.getString("REMARKS"));
-                tables.add(t);
-            }
-        } catch (java.sql.SQLException e) {
-            throw new RuntimeException("JDBC metadata 获取表列表失败: " + e.getMessage(), e);
-        }
-        return tables;
-    }
-
-    private List<Map<String, Object>> discoverCollectionsViaMongo(InsightDatasource ds) {
-        org.springframework.data.mongodb.core.MongoTemplate mongo = dsManager.getMongoTemplate(ds);
-        java.util.List<Map<String, Object>> result = new java.util.ArrayList<>();
-        for (String name : mongo.getCollectionNames()) {
-            java.util.Map<String, Object> t = new java.util.LinkedHashMap<>();
-            t.put("tableName", name);
-            t.put("schema", ds.getConnectionConfig() != null ? ds.getConnectionConfig().getDatabase() : null);
-            t.put("type", "COLLECTION");
-            t.put("remark", null);
-            result.add(t);
-        }
-        return result;
     }
 
 }

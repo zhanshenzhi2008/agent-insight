@@ -174,6 +174,22 @@ export const explorerApi = {
   // 通用对话（测试模型）
   aiChat: (system: string, message: string) =>
     explorerHttp.post<any, { data: { code: number; data: string } }>('/explorer/ai/chat', { system, message }),
+
+  // ===== AI 模型供应商配置（agent-insight 业务表） =====
+  listAiModels: () =>
+    explorerHttp.get<any, { data: { code: number; data: any[] } }>('/explorer/ai-models'),
+
+  getAiModel: (id: number) =>
+    explorerHttp.get<any, { data: { code: number; data: any } }>(`/explorer/ai-models/${id}`),
+
+  createAiModel: (data: any) =>
+    explorerHttp.post<any, { data: { code: number; data: any } }>('/explorer/ai-models', data),
+
+  updateAiModel: (id: number, data: any) =>
+    explorerHttp.put<any, { data: { code: number; data: any } }>(`/explorer/ai-models/${id}`, data),
+
+  deleteAiModel: (id: number) =>
+    explorerHttp.delete<any, { data: { code: number } }>(`/explorer/ai-models/${id}`),
 };
 
 export default explorerApi;

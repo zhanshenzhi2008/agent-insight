@@ -1,178 +1,336 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Form, Input, Select, Switch, Button, Space, message, Alert, Divider } from 'antd';
+import {
+  Card, Form, Input, InputNumber, Select, Switch, Button, Space, message, Alert, Row, Col, Table, Modal, Popconfirm,
+} from 'antd';
+import { PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined } from '@ant-design/icons';
 import { explorerApi } from '../../../services/explorerApi';
 
-interface AiConfigForm {
-  enabled: boolean;
-  columnAnalysisEnabled: boolean;
-  nlQueryEnabled: boolean;
-  summarizationEnabled: boolean;
+const VENDOR_OPTIONS = [
+  { value: 'openai', label: 'openai' },
+  { value: 'ollama', label: 'ollama' },
+  { value: 'deepseek', label: 'deepseek' },
+  { value: 'anthropic', label: 'anthropic' },
+  { value: 'google-genai', label: 'google-genai' },
+];
+
+interface AiModelRow {
+  id: number;
+  vendor: string;
+  models: string;
+  baseUrl?: string;
+  status: 0 | 1;
+  description?: string;
+  temperature?: number;
+  token?: string | null;
+  createTime: string;
+  updateTime: string;
 }
 
-interface AiStatusResponse {
-  code: number;
-  data: {
-    enabled: boolean;
-    columnAnalysisEnabled: boolean;
-    nlQueryEnabled: boolean;
-    summarizationEnabled: boolean;
-  };
+interface AiModelFormValues {
+  vendor: string;
+  models: string;
+  baseUrl?: string;
+  status: 0 | 1;
+  description?: string;
+  temperature?: number;
+  token?: string;
 }
 
 const AiConfigPage: React.FC = () => {
-  const [form] = Form.useForm<AiConfigForm>();
+  const [form] = Form.useForm<AiModelFormValues>();
+  const [list, setList] = useState<AiModelRow[]>([]);
   const [loading, setLoading] = useState(false);
-  const [initialLoading, setInitialLoading] = useState(true);
+  const [editing, setEditing] = useState<AiModelRow | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
 
   useEffect(() => {
-    loadConfig();
+    loadList();
   }, []);
 
-  const loadConfig = async () => {
-    setInitialLoading(true);
-    try {
-      const res = await explorerApi.getAiStatus();
-      const payload = res.data as AiStatusResponse;
-      if (payload.code === 0) {
-        const data = payload.data;
-        form.setFieldsValue({
-          enabled: data.enabled ?? false,
-          columnAnalysisEnabled: data.columnAnalysisEnabled ?? true,
-          nlQueryEnabled: data.nlQueryEnabled ?? true,
-          summarizationEnabled: data.summarizationEnabled ?? true,
-        });
-      } else {
-        message.error('加载 AI 配置失败');
-      }
-    } catch (e: any) {
-      message.error('加载 AI 配置失败: ' + (e.message || ''));
-    } finally {
-      setInitialLoading(false);
-    }
-  };
-
-  const handleSave = async (values: AiConfigForm) => {
+  const loadList = async () => {
     setLoading(true);
     try {
-      const res = await explorerApi.updateAiConfig(values);
-      const payload = res.data as { code: number };
+      const res = await explorerApi.listAiModels();
+      const payload = res.data as { code: number; data: AiModelRow[] };
       if (payload.code === 0) {
-        message.success('AI 配置保存成功');
+        setList(payload.data || []);
       } else {
-        message.error('保存失败');
+        message.error('加载 AI 模型配置失败');
       }
     } catch (e: any) {
-      message.error('保存失败: ' + (e.message || ''));
+      message.error('加载 AI 模型配置失败: ' + (e.message || ''));
     } finally {
       setLoading(false);
     }
   };
 
+  const openCreate = () => {
+    setEditing(null);
+    form.resetFields();
+    form.setFieldsValue({
+      vendor: 'openai',
+      models: 'gpt-4o',
+      status: 1,
+      temperature: 0.3,
+    });
+    setModalOpen(true);
+  };
+
+  const openEdit = (row: AiModelRow) => {
+    setEditing(row);
+    form.setFieldsValue({
+      vendor: row.vendor,
+      models: row.models,
+      baseUrl: row.baseUrl,
+      status: row.status,
+      description: row.description,
+      temperature: row.temperature,
+      token: '', // 编辑时不回显密钥，避免误改；留空=不更新
+    });
+    setModalOpen(true);
+  };
+
+  const handleSubmit = async () => {
+    try {
+      const values = await form.validateFields();
+      // token 留空时不要把空串发给后端（语义上 = 不更新）
+      const payload: any = { ...values };
+      if (editing && (!values.token || values.token === '')) {
+        delete payload.token;
+      }
+      setLoading(true);
+      if (editing) {
+        const res = await explorerApi.updateAiModel(editing.id, payload);
+        if ((res.data as any).code === 0) {
+          message.success('已更新');
+          setModalOpen(false);
+          loadList();
+        } else {
+          message.error('更新失败');
+        }
+      } else {
+        const res = await explorerApi.createAiModel(payload);
+        if ((res.data as any).code === 0) {
+          message.success('已新建');
+          setModalOpen(false);
+          loadList();
+        } else {
+          message.error('新建失败');
+        }
+      }
+    } catch (e: any) {
+      if (e?.errorFields) return; // 表单校验失败
+      message.error('保存失败: ' + (e?.message || ''));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = async (id: number) => {
+    try {
+      const res = await explorerApi.deleteAiModel(id);
+      if ((res.data as any).code === 0) {
+        message.success('已删除');
+        loadList();
+      } else {
+        message.error('删除失败');
+      }
+    } catch (e: any) {
+      message.error('删除失败: ' + (e?.message || ''));
+    }
+  };
+
+  const columns = [
+    { title: 'ID', dataIndex: 'id', width: 80 },
+    {
+      title: 'Vendor',
+      dataIndex: 'vendor',
+      width: 110,
+      render: (v: string) => <code>{v}</code>,
+    },
+    {
+      title: 'Models',
+      dataIndex: 'models',
+      ellipsis: true,
+      render: (v: string) => <span title={v}>{v}</span>,
+    },
+    {
+      title: 'Base URL',
+      dataIndex: 'baseUrl',
+      width: 220,
+      ellipsis: true,
+      render: (v?: string) => v || <span style={{ color: '#bbb' }}>（默认）</span>,
+    },
+    {
+      title: 'Temperature',
+      dataIndex: 'temperature',
+      width: 100,
+      render: (v?: number) => (v == null ? '—' : v),
+    },
+    {
+      title: 'Token',
+      dataIndex: 'token',
+      width: 100,
+      render: (v?: string | null) =>
+        v ? <span style={{ color: '#52c41a' }}>已配置</span> : <span style={{ color: '#999' }}>未配置</span>,
+    },
+    {
+      title: '状态',
+      dataIndex: 'status',
+      width: 90,
+      render: (s: number) => (s === 1 ? '启用' : '禁用'),
+    },
+    {
+      title: '备注',
+      dataIndex: 'description',
+      ellipsis: true,
+      render: (v?: string) => v || '—',
+    },
+    {
+      title: '操作',
+      width: 140,
+      fixed: 'right' as const,
+      render: (_: any, row: AiModelRow) => (
+        <Space>
+          <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(row)}>
+            编辑
+          </Button>
+          <Popconfirm
+            title="确认删除该供应商？"
+            onConfirm={() => handleDelete(row.id)}
+            okText="删除"
+            cancelText="取消"
+            okButtonProps={{ danger: true }}
+          >
+            <Button size="small" danger icon={<DeleteOutlined />}>
+              删除
+            </Button>
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ];
+
   return (
-    <Card title="AI 配置">
+    <Card
+      title="AI 配置"
+      extra={
+        <Space>
+          <Button icon={<ReloadOutlined />} onClick={loadList} loading={loading}>
+            刷新
+          </Button>
+          <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
+            新增供应商
+          </Button>
+        </Space>
+      }
+    >
       <Alert
         message="配置说明"
         description={
           <ul style={{ margin: 0, paddingLeft: 16 }}>
-            <li>以下配置通过 PUT /api/v1/explorer/ai/config 接口实时生效</li>
-            <li>
-              <strong>Provider / API Key / Base URL / Model</strong>：当前后端仅支持通过配置文件修改，
-              不支持运行时切换。修改请编辑 application.yml 中的 spring.ai.* 或 agent-insight.ai.* 配置项
-            </li>
-            <li>支持切换的模型供应商：openai、ollama、deepseek、anthropic、google</li>
+            <li>此页管理 agent-insight 自身业务表 <code>insight_ai_model</code>（最多 8 行）</li>
+            <li>Token / API Key 在服务端以 <strong>AES-256-GCM</strong> 加密后入库；列表返回时脱敏为 <code>******</code></li>
+            <li>编辑时 Token 字段留空 = <strong>不更新</strong>；要清除密钥请填写空字符串</li>
+            <li>Spring AI 启动时仍以 <code>application.yml</code> 中的 <code>spring.ai.*</code> / <code>agent-insight.ai.*</code> 为主；
+                此表用于运行时切换 & 多模型并存场景</li>
           </ul>
         }
         type="info"
-        style={{ marginBottom: 24 }}
+        style={{ marginBottom: 16 }}
       />
 
-      <Form
-        form={form}
-        layout="vertical"
-        onFinish={handleSave}
-        initialValues={{
-          enabled: false,
-          columnAnalysisEnabled: true,
-          nlQueryEnabled: true,
-          summarizationEnabled: true,
-        }}
+      <Row gutter={16}>
+        <Col span={24}>
+          <Table<AiModelRow>
+            rowKey="id"
+            dataSource={list}
+            columns={columns}
+            loading={loading}
+            size="middle"
+            pagination={{ pageSize: 10, showSizeChanger: false }}
+            scroll={{ x: 1100 }}
+          />
+        </Col>
+      </Row>
+
+      <Modal
+        title={editing ? '编辑 AI 供应商' : '新增 AI 供应商'}
+        open={modalOpen}
+        onCancel={() => setModalOpen(false)}
+        onOk={handleSubmit}
+        confirmLoading={loading}
+        width={640}
+        okText="保存"
+        cancelText="取消"
+        destroyOnClose
       >
-        <Divider>功能开关</Divider>
+        <Form form={form} layout="vertical" preserve={false}>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                name="vendor"
+                label="Vendor"
+                rules={[{ required: true, message: '请选择 vendor' }]}
+              >
+                <Select
+                  options={VENDOR_OPTIONS}
+                  disabled={!!editing}
+                />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                name="status"
+                label="状态"
+                rules={[{ required: true, message: '请选择状态' }]}
+              >
+                <Select
+                  options={[
+                    { value: 1, label: '启用' },
+                    { value: 0, label: '禁用' },
+                  ]}
+                />
+              </Form.Item>
+            </Col>
+          </Row>
 
-        <Form.Item
-          name="enabled"
-          label="启用 AI 功能"
-          valuePropName="checked"
-          extra="开启后将允许使用 AI 分析、自然语言查询、结果摘要等功能"
-        >
-          <Switch />
-        </Form.Item>
+          <Form.Item
+            name="models"
+            label="Models（多个用逗号分隔）"
+            rules={[{ required: true, message: '请填写模型名' }]}
+          >
+            <Input placeholder="如 gpt-4o, deepseek-chat, qwen2.5" />
+          </Form.Item>
 
-        <Form.Item
-          name="columnAnalysisEnabled"
-          label="AI 列分析"
-          valuePropName="checked"
-          extra="基于语义推断最佳渲染类型（图片/链接/颜色等）"
-        >
-          <Switch />
-        </Form.Item>
+          <Form.Item name="baseUrl" label="Base URL（可选，留空走 Spring AI 默认）">
+            <Input placeholder="如 https://api.openai.com  /  http://localhost:11434" />
+          </Form.Item>
 
-        <Form.Item
-          name="nlQueryEnabled"
-          label="自然语言查询"
-          valuePropName="checked"
-          extra="将自然语言描述转换为查询过滤条件"
-        >
-          <Switch />
-        </Form.Item>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item name="temperature" label="Temperature (0~2)">
+                <InputNumber min={0} max={2} step={0.1} style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                name="token"
+                label={editing ? 'API Key / Token（留空=不更新）' : 'API Key / Token（可选）'}
+              >
+                <Input.Password
+                  autoComplete="new-password"
+                  placeholder={editing ? '已配置 ●●●●●●，留空保持' : '选填，可后续在编辑中补充'}
+                />
+              </Form.Item>
+            </Col>
+          </Row>
 
-        <Form.Item
-          name="summarizationEnabled"
-          label="结果摘要"
-          valuePropName="checked"
-          extra="使用 AI 自动解读查询结果并生成摘要"
-        >
-          <Switch />
-        </Form.Item>
-
-        <Divider>模型配置（仅配置文件可改）</Divider>
-
-        <Form.Item label="Provider">
-          <Select disabled placeholder="openai / ollama / deepseek / anthropic / google">
-            <Select.Option value="openai">openai</Select.Option>
-            <Select.Option value="ollama">ollama</Select.Option>
-            <Select.Option value="deepseek">deepseek</Select.Option>
-            <Select.Option value="anthropic">anthropic</Select.Option>
-            <Select.Option value="google">google</Select.Option>
-          </Select>
-          <div style={{ fontSize: 12, color: '#999', marginTop: 4 }}>
-            请在 application.yml 中配置 spring.ai.openai.api-key 等字段
-          </div>
-        </Form.Item>
-
-        <Form.Item label="API Key">
-          <Input.Password disabled placeholder="请在配置文件中设置 spring.ai.openai.api-key" />
-        </Form.Item>
-
-        <Form.Item label="Base URL">
-          <Input.Password disabled placeholder="请在配置文件中设置 spring.ai.openai.base-url" />
-        </Form.Item>
-
-        <Form.Item label="Model">
-          <Input disabled placeholder="如 gpt-4o，请配置 agent-insight.ai.default-model" />
-        </Form.Item>
-
-        <Form.Item>
-          <Space>
-            <Button type="primary" htmlType="submit" loading={loading}>
-              保存配置
-            </Button>
-            <Button onClick={loadConfig} loading={initialLoading}>
-              重置
-            </Button>
-          </Space>
-        </Form.Item>
-      </Form>
+          <Form.Item name="description" label="备注">
+            <Input.TextArea rows={2} maxLength={500} showCount />
+          </Form.Item>
+        </Form>
+      </Modal>
     </Card>
   );
 };

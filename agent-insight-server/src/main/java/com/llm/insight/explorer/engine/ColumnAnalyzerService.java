@@ -1,6 +1,8 @@
 package com.llm.insight.explorer.engine;
 
+import com.llm.insight.explorer.document.InsightColumnConfig;
 import com.llm.insight.explorer.document.InsightDatasource;
+import com.llm.insight.explorer.service.ConfigService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -22,6 +24,7 @@ import java.util.*;
 public class ColumnAnalyzerService {
 
     private final DynamicDatasourceManager dsManager;
+    private final ConfigService configService;
 
     /**
      * 分析指定表的列，生成推荐配置。
@@ -138,7 +141,33 @@ public class ColumnAnalyzerService {
                         .limit(100),
                 org.bson.Document.class, tableName);
 
-        if (docs == null || docs.isEmpty()) return List.of();
+        if (docs == null || docs.isEmpty()) {
+            log.warn("[analyzeMongo] collection={} 采样 0 条文档，触发 fallback", tableName);
+            // Fallback 1: 已有字段配置（用户已配置过的列）
+            List<InsightColumnConfig> configured = configService.getColumnConfigs(ds.getDatasourceKey(), tableName);
+            if (configured != null && !configured.isEmpty()) {
+                log.info("[analyzeMongo] fallback 到 insight_column_config，{} 条", configured.size());
+                return configured.stream()
+                        .map(c -> AnalyzedColumn.builder()
+                                .columnName(c.getColumnName())
+                                .displayName(c.getDisplayName() != null ? c.getDisplayName() : c.getColumnName())
+                                .dataType(c.getDataType() != null ? c.getDataType() : "STRING")
+                                .renderType(c.getRenderType() != null ? c.getRenderType() : "TEXT")
+                                .nullRatio(0.0)
+                                .distinctCount(0L)
+                                .distinctRatio(0.0)
+                                .allSame(false)
+                                .tagColors(Map.of())
+                                .valueLabels(Map.of())
+                                .topValues(List.of())
+                                .build())
+                        .toList();
+            }
+            // Fallback 2: 完全无数据 → 抛出友好异常，前端 message.error 会显示
+            throw new IllegalStateException(
+                    "数据源 [" + ds.getDatasourceKey() + "] 的 collection [" + tableName
+                            + "] 当前 0 条文档，且未配置字段。请先在外部数据源写入数据，或在「表配置 → 字段配置」中手动添加列。");
+        }
 
         // 收集所有字段（含嵌套）
         Set<String> allFields = new LinkedHashSet<>();

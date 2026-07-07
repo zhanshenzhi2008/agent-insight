@@ -189,4 +189,54 @@ public class ConfigService {
     public InsightQueryConfig getQueryConfig(String id) {
         return mongoTemplate.findById(id, InsightQueryConfig.class);
     }
+
+    // ===== Table Discovery =====
+
+    /**
+     * Discover tables (SQL) or collections (Mongo) on the given datasource.
+     * Routes by datasource type:
+     *   - MONGODB → MongoTemplate.getCollectionNames()
+     *   - others  → JDBC DatabaseMetaData.getTables()
+     */
+    public List<java.util.Map<String, Object>> discoverTables(InsightDatasource ds) {
+        dsManager.cacheDatasource(ds);
+        String type = ds.getDatasourceType() == null ? "" : ds.getDatasourceType().toUpperCase();
+        if ("MONGODB".equals(type)) {
+            return discoverCollectionsViaMongo(ds);
+        }
+        return discoverTablesViaSqlMetadata(ds);
+    }
+
+    private List<java.util.Map<String, Object>> discoverTablesViaSqlMetadata(InsightDatasource ds) {
+        javax.sql.DataSource dataSource = dsManager.getSqlDataSource(ds);
+        java.util.List<java.util.Map<String, Object>> tables = new java.util.ArrayList<>();
+        try (var conn = dataSource.getConnection();
+             var rs = conn.getMetaData().getTables(null, null, "%", new String[]{"TABLE"})) {
+            while (rs.next()) {
+                java.util.Map<String, Object> t = new java.util.LinkedHashMap<>();
+                t.put("tableName", rs.getString("TABLE_NAME"));
+                t.put("schema", rs.getString("TABLE_SCHEM"));
+                t.put("type", rs.getString("TABLE_TYPE"));
+                t.put("remark", rs.getString("REMARKS"));
+                tables.add(t);
+            }
+        } catch (java.sql.SQLException e) {
+            throw new RuntimeException("JDBC metadata 获取表列表失败: " + e.getMessage(), e);
+        }
+        return tables;
+    }
+
+    private List<java.util.Map<String, Object>> discoverCollectionsViaMongo(InsightDatasource ds) {
+        MongoTemplate mongo = dsManager.getMongoTemplate(ds);
+        java.util.List<java.util.Map<String, Object>> result = new java.util.ArrayList<>();
+        for (String name : mongo.getCollectionNames()) {
+            java.util.Map<String, Object> t = new java.util.LinkedHashMap<>();
+            t.put("tableName", name);
+            t.put("schema", ds.getConnectionConfig() != null ? ds.getConnectionConfig().getDatabase() : null);
+            t.put("type", "COLLECTION");
+            t.put("remark", null);
+            result.add(t);
+        }
+        return result;
+    }
 }
