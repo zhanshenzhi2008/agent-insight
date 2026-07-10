@@ -1,0 +1,113 @@
+# =============================================================================
+# Agent Insight — 数据库集合 docker-compose.yml
+# =============================================================================
+# 用途：
+#   - 统一管理 MySQL / MongoDB / Redis，独立于应用部署
+#   - 部署位置：/opt/databases/
+#   - 多个项目可共享使用此数据库集合
+#
+# 使用方法：
+#   cd /opt/databases
+#   cp databases.env.example .env
+#   # 编辑 .env，填入 MYSQL_ROOT_PASSWORD 等必填值
+#   docker compose --env-file .env up -d
+#
+# 网络设计：
+#   - 创建 external 网络 db-net，供应用连接
+#   - 数据库服务仅加入此网络，不对外暴露端口
+#   - 应用项目通过 external 网络引用连接
+#
+# 数据持久化：
+#   - mysql    → /opt/databases/mysql/data
+#   - mongodb  → /opt/databases/mongodb/data
+#   - redis    → /opt/databases/redis/data
+#
+# 安全说明：
+#   - 所有变量必须在 .env 中显式提供，不设置默认值（避免明文/默认凭据泄露）
+#   - 业务库（insight）与业务用户（insight_app）由人工在容器启动后创建，
+#     不通过环境变量自动初始化（生产环境强制 DBA 介入）
+# =============================================================================
+
+services:
+  # ---------------------------------------------------------------------------
+  # MySQL 服务
+  #   - agent-insight 自身元数据存储（insight_datasource / insight_table_config）
+  #   - 注意：log_llm_* 日志表已迁移到 MongoDB（见 docs/00-revision-2026-07-03.md）
+  # ---------------------------------------------------------------------------
+  mysql:
+    image: mysql:8.4
+    container_name: mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      TZ: Asia/Shanghai
+    expose:
+      - "3306"
+    volumes:
+      - ./mysql/data:/var/lib/mysql
+      # 初始化脚本（首次启动时执行，仅当 ./mysql/data 为空时）
+      - ./mysql/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - db-net
+
+  # ---------------------------------------------------------------------------
+  # MongoDB 服务（元数据存储 + llm-agent 业务数据查询）
+  #   - insight_* 元数据集合（datasource / table_config / column_config 等）
+  #   - W2+ 通过 MongoQueryEngine 动态查询外部 llm-agent Mongo
+  # ---------------------------------------------------------------------------
+  mongodb:
+    image: mongo:8.3
+    container_name: mongodb
+    restart: unless-stopped
+    # 注意：业务库/用户由人工创建，不通过环境变量自动初始化
+    expose:
+      - "27017"
+    volumes:
+      - ./mongodb/data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - db-net
+
+  # ---------------------------------------------------------------------------
+  # Redis 服务（查询结果缓存）
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:8.8.0-alpine
+    container_name: redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    expose:
+      - "6379"
+    volumes:
+      - ./redis/data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - db-net
+
+# -----------------------------------------------------------------------------
+# 网络
+# -----------------------------------------------------------------------------
+# 创建 external 网络供应用项目连接
+# 应用项目通过 external 方式引用此网络名
+networks:
+  db-net:
+    external: true
+    name: db-net

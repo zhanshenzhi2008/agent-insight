@@ -29,9 +29,9 @@ FIXTURE_DIR="${PROJECT_ROOT}/fixtures"
 
 MYSQL_HOST="${MYSQL_HOST:-localhost}"
 MYSQL_PORT="${MYSQL_PORT:-3306}"
-MYSQL_DB="${MYSQL_DB:-llm_agent}"
-MYSQL_USERNAME="${MYSQL_USERNAME:-llm_agent}"
-MYSQL_PASSWORD="${MYSQL_PASSWORD:-llm_agent}"
+MYSQL_DB="${MYSQL_DB:-agent_insight}"
+MYSQL_USERNAME="${MYSQL_USERNAME:-root}"
+MYSQL_PASSWORD="${MYSQL_PASSWORD:-root830i}"
 
 MONGODB_URI="${MONGODB_URI:-mongodb://localhost:27017/agent_insight}"
 

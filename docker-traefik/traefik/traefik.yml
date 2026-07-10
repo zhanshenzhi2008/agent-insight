@@ -1,0 +1,62 @@
+# =============================================================================
+# Traefik v3 配置
+# =============================================================================
+# 位置：/opt/docker/traefik/traefik.yml
+# 说明：
+#   - Traefik 作为全局反向代理，自动发现 Docker 容器并路由
+#   - Let's Encrypt 自动申请 HTTPS 证书
+#   - Docker Socket 挂载方式：仅监听指定网络中的容器
+#
+# 使用方法：
+#   1. 将本文件复制到 /opt/docker/traefik/traefik.yml
+#   2. 修改 email 地址
+#   3. docker compose -f /opt/docker/docker-compose-base.yml up -d
+# =============================================================================
+
+api:
+  dashboard:
+    enabled: true
+    insecure: true  # 方便调试，生产环境建议关闭
+
+entryPoints:
+  web:
+    address: ":80"
+    http:
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+          permanent: true
+
+  websecure:
+    address: ":443"
+
+  metrics:
+    address: ":8082"
+
+providers:
+  docker:
+    endpoint: "unix:///var/run/docker.sock"
+    exposedByDefault: false
+    network: proxy
+    watch: true
+
+  file:
+    directory: /etc/traefik/dynamic
+    watch: true
+
+certificatesResolvers:
+  letsencrypt:
+    acme:
+      email: your@email.com  # 改成你的邮箱
+      storage: /acme.json
+      httpChallenge:
+        entrypoint: web
+      tlsChallenge: true
+
+log:
+  level: INFO
+  filePath: /var/log/traefik/traefik.log
+
+accessLog:
+  filePath: /var/log/traefik/access.log

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Card, Form, Input, InputNumber, Select, Switch, Button, Space, message, Alert, Row, Col, Table, Modal, Popconfirm,
+  Card, Form, Input, InputNumber, Select, Button, Space, App, Alert, Row, Col, Table, Modal, Popconfirm,
 } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined } from '@ant-design/icons';
 import { explorerApi } from '../../../services/explorerApi';
@@ -66,29 +66,38 @@ const AiConfigPage: React.FC = () => {
 
   const openCreate = () => {
     setEditing(null);
-    form.resetFields();
-    form.setFieldsValue({
-      vendor: 'openai',
-      models: 'gpt-4o',
-      status: 1,
-      temperature: 0.3,
-    });
     setModalOpen(true);
   };
 
   const openEdit = (row: AiModelRow) => {
     setEditing(row);
-    form.setFieldsValue({
-      vendor: row.vendor,
-      models: row.models,
-      baseUrl: row.baseUrl,
-      status: row.status,
-      description: row.description,
-      temperature: row.temperature,
-      token: '', // 编辑时不回显密钥，避免误改；留空=不更新
-    });
     setModalOpen(true);
   };
+
+  // destroyOnHidden=true 后，Form 树在 Modal 关闭时被卸载。
+  // 必须在 Modal 重新挂载后才能 setFieldsValue，所以用 effect 跟随 modalOpen。
+  useEffect(() => {
+    if (!modalOpen) return;
+    if (editing) {
+      form.setFieldsValue({
+        vendor: editing.vendor,
+        models: editing.models,
+        baseUrl: editing.baseUrl,
+        status: editing.status,
+        description: editing.description,
+        temperature: editing.temperature,
+        token: '', // 编辑时不回显密钥，避免误改；留空=不更新
+      });
+    } else {
+      form.resetFields();
+      form.setFieldsValue({
+        vendor: 'openai',
+        models: 'gpt-4o',
+        status: 1,
+        temperature: 0.3,
+      });
+    }
+  }, [modalOpen, editing, form]);
 
   const handleSubmit = async () => {
     try {
@@ -226,7 +235,7 @@ const AiConfigPage: React.FC = () => {
       }
     >
       <Alert
-        message="配置说明"
+        title="配置说明"
         description={
           <ul style={{ margin: 0, paddingLeft: 16 }}>
             <li>此页管理 agent-insight 自身业务表 <code>insight_ai_model</code>（最多 8 行）</li>
@@ -243,7 +252,7 @@ const AiConfigPage: React.FC = () => {
       <Row gutter={16}>
         <Col span={24}>
           <Table<AiModelRow>
-            rowKey="id"
+            rowKey={(r) => `${r.id}-${r.vendor}`}
             dataSource={list}
             columns={columns}
             loading={loading}
@@ -263,7 +272,7 @@ const AiConfigPage: React.FC = () => {
         width={640}
         okText="保存"
         cancelText="取消"
-        destroyOnClose
+        destroyOnHidden
       >
         <Form form={form} layout="vertical" preserve={false}>
           <Row gutter={16}>

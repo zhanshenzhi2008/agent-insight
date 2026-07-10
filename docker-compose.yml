@@ -25,20 +25,19 @@ version: '3.8'
 
 services:
   # ---------------------------------------------------------------------------
-  # ⚠️ DEPRECATED: MySQL 服务（主数据源，存储 llm-agent 日志表）
-  #   仅供 W4 前老 5 个 Service（JPA Repository）兜底，W4 后可安全删除
-  #   log_llm_* 表的真实存储已迁移至 llm-agent 工程的 MongoDB
-  #   详见 docs/00-revision-2026-07-03.md
+  # MySQL 服务（agent-insight 自身元数据存储）
+  # 注意：log_llm_* 日志表已迁移到 MongoDB，本 MySQL 仅存 agent-insight
+  # 的表（如 insight_datasource、insight_table_config 等）
   # ---------------------------------------------------------------------------
   mysql:
-    image: mysql:8.0
+    image: mysql:8.4
     container_name: agent-insight-mysql
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_PASSWORD:-root830i}
-      MYSQL_DATABASE: ${MYSQL_DB:-llm_agent}
-      MYSQL_USER: ${MYSQL_USERNAME:-llm_agent}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-llm_agent}
+      MYSQL_DATABASE: ${MYSQL_DB:-agent_insight}
+      MYSQL_USER: ${MYSQL_USERNAME:-root}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-root830i}
       TZ: Asia/Shanghai
     ports:
       - "${MYSQL_PORT:-3306}:3306"
@@ -50,7 +49,7 @@ services:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
       - --default-authentication-plugin=mysql_native_password
-      - --skip-ssl
+      - --skip-ssl  
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_PASSWORD:-root830i}"]
       interval: 10s
@@ -58,7 +57,7 @@ services:
       retries: 5
       start_period: 30s
     networks:
-      - agent-insight-net
+      - db-net
 
   # ---------------------------------------------------------------------------
   # MongoDB 服务（元数据存储 + llm-agent 业务数据查询）
@@ -67,7 +66,7 @@ services:
   #   - 不挂载初始化脚本，数据由 templates/llm-agent/ 导入
   # ---------------------------------------------------------------------------
   mongodb:
-    image: mongo:7.0
+    image: mongo:8.3
     container_name: agent-insight-mongodb
     restart: unless-stopped
     environment:
@@ -83,13 +82,13 @@ services:
       retries: 5
       start_period: 10s
     networks:
-      - agent-insight-net
+      - db-net
 
   # ---------------------------------------------------------------------------
   # Redis 服务（查询结果缓存）
   # ---------------------------------------------------------------------------
   redis:
-    image: redis:7-alpine
+    image: redis:8.8.0-alpine
     container_name: agent-insight-redis
     restart: unless-stopped
     command: redis-server --appendonly yes
@@ -103,7 +102,7 @@ services:
       timeout: 3s
       retries: 5
     networks:
-      - agent-insight-net
+      - db-net
 
   # ---------------------------------------------------------------------------
   # 后端服务（Spring Boot 4.1，端口 9280）
@@ -117,15 +116,13 @@ services:
     ports:
       - "${SERVER_PORT:-9280}:9280"
     environment:
-      # Spring
-      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-default}
       JAVA_OPTS: "-Xms512m -Xmx1024m -XX:+UseG1GC"
-      # ⚠️ DEPRECATED: MySQL 仅供 W4 前老 Service 兜底，详见 docs/00-revision-2026-07-03.md
+      # MySQL 配置
       MYSQL_HOST: mysql
       MYSQL_PORT: 3306
-      MYSQL_DB: ${MYSQL_DB:-llm_agent}
-      MYSQL_USERNAME: ${MYSQL_USERNAME:-llm_agent}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-llm_agent}
+      MYSQL_DB: ${MYSQL_DB:-agent_insight}
+      MYSQL_USERNAME: ${MYSQL_USERNAME:-root}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-root830i}
       # MongoDB
       MONGODB_URI: "mongodb://mongodb:27017/${MONGO_DB:-agent_insight}"
       MONGODB_PORT: 27017
@@ -161,7 +158,7 @@ services:
       retries: 5
       start_period: 60s
     networks:
-      - agent-insight-net
+      - db-net
 
   # ---------------------------------------------------------------------------
   # 前端服务（React + Vite，端口 80）
@@ -179,13 +176,13 @@ services:
     depends_on:
       - agent-insight-backend
     networks:
-      - agent-insight-net
+      - db-net
 
 # -----------------------------------------------------------------------------
 # 网络
 # -----------------------------------------------------------------------------
 networks:
-  agent-insight-net:
+  db-net:
     driver: bridge
 
 # -----------------------------------------------------------------------------

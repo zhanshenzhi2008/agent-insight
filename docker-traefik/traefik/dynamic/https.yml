@@ -1,0 +1,95 @@
+# =============================================================================
+# Traefik 动态配置（HTTP 服务配置）
+# =============================================================================
+# 位置：/opt/docker/traefik/dynamic/https.yml
+# 说明：
+#   - 定义各类 HTTP 服务的路由规则
+#   - 可按需添加更多服务配置
+#
+# 配置说明：
+#   ┌─────────────────────────────────────────────────────────────────────────┐
+#   │                          Traefik 工作原理                                │
+#   │                                                                         │
+#   │   用户请求                                                                │
+#   │      ↓                                                                   │
+#   │   Traefik (监听 80/443 端口)                                            │
+#   │      ↓                                                                   │
+#   │   [router 路由规则] ——— 根据 rule 匹配请求                               │
+#   │      ↓                                                                   │
+#   │   [service 服务] ——— 转发到实际容器                                     │
+#   │      ↓                                                                   │
+#   │   实际容器 (portainer:9000)                                              │
+#   └─────────────────────────────────────────────────────────────────────────┘
+#
+#   rule: "Host(`1.2.3.4`)"         ← 路由规则：什么请求进来？
+#         ↑                                          ↑
+#         │                                          │
+#   匹配用户访问的 Host 头                    实际容器名:容器端口
+#   即：用户访问 http://1.2.3.4 时           （在 Docker 网络中解析）
+#       Traefik 就把请求路由到 portainer
+# =============================================================================
+
+http:
+  # ---------------------------------------------------------------------------
+  # Portainer
+  # ---------------------------------------------------------------------------
+  # 方式 1：域名访问（需要 DNS 解析）
+  #  当用户访问 http://portainer.yourdomain.com 时，匹配此规则
+  # routers:
+  #   portainer:
+  #     rule: "Host(`portainer.yourdomain.com`)"
+  #     service: portainer-svc
+  #     entrypoints:
+  #       - websecure
+  #     tls:
+  #       certResolver: letsencrypt
+
+  # 方式 2：IP 直接访问（无域名时使用）
+  #  当用户访问 http://1.2.3.4 时，匹配此规则
+  #  ⚠️ 把 1.2.3.4 改成你的服务器 IP
+  routers:
+    portainer: // 这只是个名字 portainer改成 xxx 也行
+      # rule：路由规则，定义什么请求会被这个 router 捕获
+      # Host(`IP`)：匹配请求的 Host 头等于这个 IP
+      # 例如：用户浏览器访问 http://1.2.3.4，Host 头就是 1.2.3.4
+      rule: "Host(`1.2.3.4`)"
+      service: portainer-svc  // 这里指向 services 里的 portainer-svc
+      entrypoints:
+        - websecure
+      tls:
+        certResolver: letsencrypt
+
+  services:
+    portainer-svc: // 这里定义了 portainer-svc 服务
+      loadBalancer:
+        servers:
+          # url：实际容器地址
+          # 格式：http://容器名:端口
+          # portainer 是 docker-compose-base.yml 中定义的容器名
+          # 9000 是 Portainer 容器的内部端口
+          - url: "http://portainer:9000"
+
+  # ---------------------------------------------------------------------------
+  # Traefik Dashboard（仅内网访问时使用）
+  # ---------------------------------------------------------------------------
+  # 方式 1：域名访问
+  #  当用户访问 http://traefik.yourdomain.com 时，匹配此规则
+  # routers:
+  #   traefik-dashboard:
+  #     rule: "Host(`traefik.yourdomain.com`)"
+  #     service: api@internal
+  #     entrypoints:
+  #       - websecure
+  #     tls:
+  #       certResolver: letsencrypt
+
+  # 方式 2：IP 直接访问
+  #  当用户访问 http://1.2.3.4:8080 时，匹配此规则
+  # routers:
+  #   traefik-dashboard:
+  #     rule: "Host(`1.2.3.4`)"
+  #     service: api@internal
+  #     entrypoints:
+  #       - websecure
+  #     tls:
+  #       certResolver: letsencrypt
