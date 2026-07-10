@@ -41,12 +41,12 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       TZ: Asia/Shanghai
-    expose:
-      - "3306"
+    ports:
+      - "3306:3306"
     volumes:
       - ./mysql/data:/var/lib/mysql
       # 初始化脚本（首次启动时执行，仅当 ./mysql/data 为空时）
-      - ./mysql/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+      #- ./mysql/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
     command:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_0900_ai_ci
@@ -69,8 +69,8 @@ services:
     container_name: mongodb
     restart: unless-stopped
     # 注意：业务库/用户由人工创建，不通过环境变量自动初始化
-    expose:
-      - "27017"
+    ports:
+      - "27017:27017"
     volumes:
       - ./mongodb/data:/data/db
     healthcheck:
@@ -90,8 +90,8 @@ services:
     container_name: redis
     restart: unless-stopped
     command: redis-server --appendonly yes
-    expose:
-      - "6379"
+    ports:
+      - "6379:6379"
     volumes:
       - ./redis/data:/data
     healthcheck:
