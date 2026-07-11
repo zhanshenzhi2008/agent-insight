@@ -56,9 +56,9 @@ services:
       - "traefik.docker.network=proxy"
     env_file:
       # 数据库连接（需先 cp envs/db.env.example envs/db.env 并填写）
-      - ./envs/db.env
+      - ../envs/db.env
       # AI 凭据（需先 cp envs/ai.env.example envs/ai.env 并填写，AI_ENABLED=false 时可留空）
-      - ./envs/ai.env
+      - ../envs/ai.env
     environment:
       JAVA_OPTS: "-Xms512m -Xmx1024m -XX:+UseG1GC"
 
@@ -80,6 +80,23 @@ services:
   # ---------------------------------------------------------------------------
   # 前端服务（React + Vite + Nginx）
   # ---------------------------------------------------------------------------
+  # 路由方案选择（根据实际需求选择一种）：
+  #
+  # 方案 A（推荐）：只通过前端 nginx 代理 API，后端无需 Traefik 路由
+  #   - 优点：前端统一入口，配置简单
+  #   - 前端 nginx 会把 /api/* 转发到 agent-insight-backend:9280
+  #   - 只需给前端配置 Traefik 路由（见下方 labels）
+  #
+  # 方案 B：如果前端 nginx 不代理 API，需要 Traefik 同时路由前后端
+  #   - 前端 nginx 只处理静态文件
+  #   - Traefik 路由 /api/* 到后端，/* 到前端
+  #   - 需要额外给后端配置 Traefik labels（见下方被注释的 labels）
+  #
+  # 方案 C：前后端独立域名
+  #   - 前端：frontend.yourdomain.com
+  #   - 后端 API：api.yourdomain.com
+  #   - 各自配置独立的 Traefik 路由
+  # ---------------------------------------------------------------------------
   agent-insight-frontend:
     build:
       context: ../../agent-insight-web
@@ -97,6 +114,13 @@ services:
       - "traefik.http.routers.agent-insight-frontend.tls.certresolver=letsencrypt"
       - "traefik.http.services.agent-insight-frontend.loadbalancer.server.port=80"
       - "traefik.docker.network=proxy"
+
+    # 方案 B：如果需要 Traefik 同时路由后端，启用以下 labels（注释掉上面的后端 labels）
+    # 注意：启用方案 B 时，需要注释掉上方前端 labels 中的 agent-insight-frontend 相关配置
+    # environment:
+    #   # 如果用 Traefik 直接路由 API，需要在 Vite 配置中把 VITE_API_BASE_URL 改为完整地址
+    #   VITE_API_BASE_URL: https://${DOMAIN}/api
+
     depends_on:
       - agent-insight-backend
     networks:

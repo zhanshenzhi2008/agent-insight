@@ -14,9 +14,8 @@
 # =============================================================================
 
 api:
-  dashboard:
-    enabled: true
-    insecure: true  # 方便调试，生产环境建议关闭
+  dashboard: true
+  insecure: true  # 方便调试，生产环境建议关闭
 
 entryPoints:
   web:

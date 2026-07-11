@@ -68,7 +68,9 @@ services:
     image: mongo:8.3
     container_name: mongodb
     restart: unless-stopped
-    # 注意：业务库/用户由人工创建，不通过环境变量自动初始化
+    #environment:
+    #  MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME:-}
+    #  MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:-}
     ports:
       - "27017:27017"
     volumes:
