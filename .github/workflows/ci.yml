@@ -82,8 +82,8 @@ jobs:
         run: |
           curl -fsSL https://pgp.mongodb.com/server-8.0.asc | gpg --yes --dearmor -o /usr/share/keyrings/mongodb-server-8.0.gpg
           echo "deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-8.0.gpg ] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/8.3 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-8.3.list
-          apt-get update
-          apt-get install -y mongodb-mongosh
+          sudo apt-get update
+          sudo apt-get install -y mongodb-mongosh
 
       - name: Create tables
         run: |
@@ -161,7 +161,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
           cache-dependency-path: agent-insight-web/package-lock.json
 
@@ -226,7 +226,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
           cache-dependency-path: agent-insight-web/package-lock.json
 
@@ -245,8 +245,8 @@ jobs:
         run: |
           curl -fsSL https://pgp.mongodb.com/server-8.0.asc | gpg --yes --dearmor -o /usr/share/keyrings/mongodb-server-8.0.gpg
           echo "deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-8.0.gpg ] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/8.3 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-8.3.list
-          apt-get update
-          apt-get install -y mongodb-mongosh
+          sudo apt-get update
+          sudo apt-get install -y mongodb-mongosh
 
       - name: Create tables
         run: |
