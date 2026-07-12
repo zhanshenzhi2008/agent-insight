@@ -3,9 +3,11 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import RequestSearchPage from '../../pages/RequestSearch/index';
 
-const mockNavigate = vi.fn();
-const mockSearch = vi.fn();
-const mockInstances = vi.fn();
+const { mockNavigate, mockSearch, mockInstances } = vi.hoisted(() => ({
+  mockNavigate: vi.fn(),
+  mockSearch: vi.fn(),
+  mockInstances: vi.fn(),
+}));
 
 vi.mock('react-router-dom', () => ({
   useNavigate: () => mockNavigate,
@@ -73,7 +75,8 @@ describe('RequestSearchPage', () => {
   it('renders the search form fields', async () => {
     render(<RequestSearchPage />);
     expect(screen.getByPlaceholderText('Request ID')).toBeInTheDocument();
-    expect(screen.getByPlaceholderText('Agent 名称')).toBeInTheDocument();
+    // antd AutoComplete 的 placeholder 渲染在 aria-label 而非 placeholder 属性
+    expect(screen.getByText('Agent 名称')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /搜索/i })).toBeInTheDocument();
   });
 

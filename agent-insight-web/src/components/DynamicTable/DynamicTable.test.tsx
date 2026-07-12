@@ -86,7 +86,8 @@ describe('DynamicTable', () => {
   it('renders pagination info', () => {
     render(<DynamicTable result={mockResult as any} />);
     expect(screen.getByText(/查询耗时: 42ms/)).toBeInTheDocument();
-    expect(screen.getByText(/共 2 条/)).toBeInTheDocument();
+    // 自定义信息栏 + 分页栏都有"共 2 条"，用 getAllByText
+    expect(screen.getAllByText(/共 2 条/).length).toBeGreaterThanOrEqual(1);
   });
 
   it('shows loading state when loading prop is true', () => {
