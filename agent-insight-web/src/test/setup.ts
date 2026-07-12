@@ -1,3 +1,5 @@
+/// <reference types="vitest/globals" />
+
 import '@testing-library/jest-dom';
 
 // antd 响应式依赖 window.matchMedia，jsdom 默认没有实现
