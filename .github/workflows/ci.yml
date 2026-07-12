@@ -81,7 +81,7 @@ jobs:
       - name: Install mongosh for MongoDB 8.3
         run: |
           curl -fsSL https://pgp.mongodb.com/server-8.0.asc | gpg --yes --dearmor -o /usr/share/keyrings/mongodb-server-8.0.gpg
-          echo "deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-8.0.gpg ] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/8.3 multiverse" | tee /etc/apt/sources.list.d/mongodb-org-8.3.list
+          echo "deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-8.0.gpg ] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/8.3 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-8.3.list
           apt-get update
           apt-get install -y mongodb-mongosh
 
@@ -244,7 +244,7 @@ jobs:
       - name: Install mongosh for MongoDB 8.3
         run: |
           curl -fsSL https://pgp.mongodb.com/server-8.0.asc | gpg --yes --dearmor -o /usr/share/keyrings/mongodb-server-8.0.gpg
-          echo "deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-8.0.gpg ] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/8.3 multiverse" | tee /etc/apt/sources.list.d/mongodb-org-8.3.list
+          echo "deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-8.0.gpg ] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/8.3 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-8.3.list
           apt-get update
           apt-get install -y mongodb-mongosh
 
