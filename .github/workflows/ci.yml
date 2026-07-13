@@ -135,7 +135,7 @@ jobs:
       - name: Initialize MongoDB metadata
         run: |
           mongosh mongodb://127.0.0.1:27017/agent_insight --quiet \
-            "$(cat fixtures/mongodb/init-insight-meta.js)"
+            "$(cat ../fixtures/mongodb/init-insight-meta.js)"
 
       - name: Run Maven tests
         run: >-
@@ -298,7 +298,7 @@ jobs:
       - name: Initialize MongoDB metadata
         run: |
           mongosh mongodb://127.0.0.1:27017/agent_insight --quiet \
-            "$(cat fixtures/mongodb/init-insight-meta.js)"
+            "$(cat ../fixtures/mongodb/init-insight-meta.js)"
 
       - name: Install Playwright browsers
         run: npx playwright install --with-deps
