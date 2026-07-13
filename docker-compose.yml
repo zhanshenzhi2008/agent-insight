@@ -109,7 +109,7 @@ services:
   # ---------------------------------------------------------------------------
   agent-insight-backend:
     build:
-      context: .
+      context: ./agent-insight-server
       dockerfile: Dockerfile
     container_name: agent-insight-backend
     restart: unless-stopped
@@ -166,7 +166,7 @@ services:
   agent-insight-frontend:
     build:
       context: ./agent-insight-web
-      dockerfile: ../Dockerfile.web
+      dockerfile: Dockerfile
       args:
         VITE_API_BASE_URL: /api
     container_name: agent-insight-frontend
