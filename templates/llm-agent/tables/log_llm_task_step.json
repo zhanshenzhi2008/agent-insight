@@ -1,0 +1,25 @@
+{
+  "_comment": "llm-agent 监控模板 v1.0.0 — 任务步骤表元数据",
+  "_references": [
+    "docs/02b-template-spec.md §2, §4.3"
+  ],
+  "tableKey": "llm-agent.log_llm_task_step",
+  "tableName": "log_llm_task_step",
+  "datasourceKey": "prod-llm-agent-shard-1",
+  "logicalGroup": "llm-agent",
+  "displayName": "任务步骤",
+  "description": "task 内的 template/rag/parser/verifier/action/result 步骤明细，每行 = task 内一个步骤",
+  "tableType": "COLLECTION",
+  "status": "ACTIVE",
+  "queryConfig": {
+    "defaultSortField": "id",
+    "defaultSortOrder": "asc",
+    "defaultPageSize": 50,
+    "maxPageSize": 1000,
+    "enableExport": false,
+    "exportFormats": []
+  },
+  "tags": ["v1-template", "llm-agent", "core"],
+  "createdBy": "template-import",
+  "version": "1.0.0"
+}

@@ -1,0 +1,25 @@
+{
+  "_comment": "llm-agent 监控模板 v1.0.0 — log_llm_agent_main.agentResult 列定义（JSON 折叠）",
+  "columnKey": "llm-agent.log_llm_agent_main.agentResult",
+  "tableKey": "llm-agent.log_llm_agent_main",
+  "columnName": "agentResult",
+  "displayName": "Agent 结果",
+  "description": "Agent 最终输出结果（JSON 文本）",
+  "dataType": "TEXT",
+  "columnType": "DIMENSION",
+  "sortable": false,
+  "filterable": false,
+  "required": false,
+  "nullable": true,
+  "displayOrder": 20,
+  "width": 240,
+  "minWidth": 120,
+  "maxWidth": 400,
+  "formatConfig": { "type": "TEXT", "truncateLength": 100 },
+  "renderConfig": {
+    "type": "JSON",
+    "props": { "expandDepth": 1 }
+  },
+  "filterConfig": null,
+  "version": "1.0.0"
+}

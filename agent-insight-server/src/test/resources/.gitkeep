@@ -1,0 +1,12 @@
+# 测试期配置目录
+#
+# Spring Boot 测试运行时，src/test/resources/ 加入 classpath。
+# 当前没有测试配置文件（如 application-test.yml）需要放在这里。
+#
+# 业务测试夹具（SQL / JS / 日志）已迁至仓库根 fixtures/ 目录，由
+# scripts/seed-all.sh 统一管理，与本目录无关。
+#
+# 何时往这里加文件：
+#   - application-test.yml        （测试 Profile 配置，覆盖主配置）
+#   - logback-test.xml            （测试期日志策略）
+#   - 测试期 SSL 证书 / keystore 等二进制资源

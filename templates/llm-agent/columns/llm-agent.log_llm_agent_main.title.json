@@ -1,0 +1,22 @@
+{
+  "_comment": "llm-agent 监控模板 v1.0.0 — log_llm_agent_main.title 列定义",
+  "columnKey": "llm-agent.log_llm_agent_main.title",
+  "tableKey": "llm-agent.log_llm_agent_main",
+  "columnName": "title",
+  "displayName": "标题",
+  "description": "Agent 调用的人类可读标题",
+  "dataType": "VARCHAR",
+  "columnType": "DIMENSION",
+  "sortable": true,
+  "filterable": true,
+  "required": false,
+  "nullable": true,
+  "displayOrder": 8,
+  "width": 200,
+  "minWidth": 100,
+  "maxWidth": 300,
+  "formatConfig": { "type": "TEXT", "truncateLength": 50 },
+  "renderConfig": { "type": "TEXT" },
+  "filterConfig": { "type": "INPUT", "operator": "LIKE" },
+  "version": "1.0.0"
+}

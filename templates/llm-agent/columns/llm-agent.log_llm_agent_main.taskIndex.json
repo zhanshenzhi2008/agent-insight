@@ -1,0 +1,22 @@
+{
+  "_comment": "llm-agent 监控模板 v1.0.0 — log_llm_agent_main.taskIndex 列定义",
+  "columnKey": "llm-agent.log_llm_agent_main.taskIndex",
+  "tableKey": "llm-agent.log_llm_agent_main",
+  "columnName": "taskIndex",
+  "displayName": "Task 序号",
+  "description": "任务在 AgentFlow 中的执行顺序",
+  "dataType": "INT",
+  "columnType": "DIMENSION",
+  "sortable": true,
+  "filterable": true,
+  "required": false,
+  "nullable": true,
+  "displayOrder": 12,
+  "width": 90,
+  "minWidth": 60,
+  "maxWidth": 120,
+  "formatConfig": { "type": "TEXT" },
+  "renderConfig": { "type": "TEXT" },
+  "filterConfig": { "type": "INPUT", "operator": "EQ" },
+  "version": "1.0.0"
+}

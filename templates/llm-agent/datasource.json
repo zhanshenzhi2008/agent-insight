@@ -1,0 +1,40 @@
+{
+  "_comment": "llm-agent 监控模板 v1.0.0 — 数据源配置（占位符在导入时由 importer 替换或保留由用户填写）",
+  "_references": [
+    "docs/02b-template-spec.md §1 — insight_datasource 字段定义",
+    "docs/00-revision-2026-07-03.md §2.2 — logicalGroup + shardRole 设计"
+  ],
+  "datasourceKey": "prod-llm-agent-shard-1",
+  "datasourceName": "LLM-Agent 生产环境（分片 1）",
+  "datasourceType": "MONGODB",
+  "logicalGroup": "llm-agent",
+  "shardRole": "PRIMARY",
+  "status": "ACTIVE",
+  "connectionConfig": {
+    "_placeholder_host": "用户实际 Mongo 地址，如 10.20.30.41",
+    "host": "<PLACEHOLDER_HOST>",
+    "port": 27017,
+    "database": "llm_agent",
+    "username": "<PLACEHOLDER_USERNAME>",
+    "_security_password": "⚠️ 必须用 KMS 加密后的密文，禁止明文入库（详见 AGENTS.md §6.6）",
+    "password": "<PLACEHOLDER_ENCRYPTED_PASSWORD>",
+    "authDatabase": "admin",
+    "connectionPoolSize": 10,
+    "connectionTimeoutMs": 30000,
+    "socketTimeoutMs": 60000,
+    "extraParams": {
+      "serverSelectionTimeoutMs": 5000
+    }
+  },
+  "allowedCollections": [
+    "log_llm_agent_main",
+    "log_llm_task_detail",
+    "log_llm_task_step",
+    "log_llm_http_request"
+  ],
+  "deniedCollections": [],
+  "description": "v1 模板包 - llm-agent 工程 Mongo 数据源（v1.0 锁定 MONGODB）",
+  "tags": ["v1-template", "llm-agent", "production"],
+  "createdBy": "template-import",
+  "version": "1.0.0"
+}

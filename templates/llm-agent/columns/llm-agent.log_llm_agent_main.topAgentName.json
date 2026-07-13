@@ -1,0 +1,22 @@
+{
+  "_comment": "llm-agent 监控模板 v1.0.0 — log_llm_agent_main.topAgentName 列定义（常用 group by）",
+  "columnKey": "llm-agent.log_llm_agent_main.topAgentName",
+  "tableKey": "llm-agent.log_llm_agent_main",
+  "columnName": "topAgentName",
+  "displayName": "顶层 Agent",
+  "description": "顶层 Agent 名称（用于按 agent 维度统计）",
+  "dataType": "VARCHAR",
+  "columnType": "DIMENSION",
+  "sortable": true,
+  "filterable": true,
+  "required": false,
+  "nullable": true,
+  "displayOrder": 6,
+  "width": 180,
+  "minWidth": 120,
+  "maxWidth": 280,
+  "formatConfig": { "type": "TEXT" },
+  "renderConfig": { "type": "TEXT" },
+  "filterConfig": { "type": "INPUT", "operator": "EQ" },
+  "version": "1.0.0"
+}

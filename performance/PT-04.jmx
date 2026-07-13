@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jmeterTestPlan version="5.6.3" jmeter="5.6.3" xmlns="jmeter">
+  <hashTree>
+    <!-- PT-04: 100 并发请求检索，目标吞吐量 > 50 req/s -->
+    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="PT-04: 100并发请求检索" enabled="true">
+      <stringProp name="TestPlan.comments">目标: 吞吐量 &gt; 50 req/s | 场景: 100个并发线程同时发送请求检索列表</stringProp>
+      <boolProp name="TestPlan.functional_mode">false</boolProp>
+      <boolProp name="TestPlan.tearDown_on_shutdown">true</boolProp>
+      <boolProp name="TestPlan.serialize_threadgroups">false</boolProp>
+      <elementProp name="TestPlan.user_defined_variables" elementType="Arguments">
+        <collectionProp name="Arguments.arguments"/>
+      </elementProp>
+    </TestPlan>
+
+    <Arguments guiclass="ArgumentsPanel" testclass="Arguments" testname="全局变量" enabled="true">
+      <collectionProp name="Arguments.arguments">
+        <elementProp name="HOST" elementType="Argument">
+          <stringProp name="Argument.name">HOST</stringProp>
+          <stringProp name="Argument.value">localhost</stringProp>
+        </elementProp>
+        <elementProp name="PORT" elementType="Argument">
+          <stringProp name="Argument.name">PORT</stringProp>
+          <stringProp name="Argument.value">9280</stringProp>
+        </elementProp>
+      </collectionProp>
+    </Arguments>
+
+    <hashTree>
+      <!-- 100 线程，ramp-up 10s，循环 10 次 -->
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="PT-04 ThreadGroup (100并发)" enabled="true">
+        <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControllerGui" testclass="LoopController" testname="Loop Controller">
+          <intProp name="LoopController.loops">10</intProp>
+          <boolProp name="LoopController.continue_forever">false</boolProp>
+        </elementProp>
+        <stringProp name="ThreadGroup.num_threads">100</stringProp>
+        <!-- ramp-up 10s，每秒启动 10 个线程 -->
+        <stringProp name="ThreadGroup.ramp_time">10</stringProp>
+        <boolProp name="ThreadGroup.scheduler">false</boolProp>
+      </ThreadGroup>
+
+      <hashTree>
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="GET /api/v1/requests?page=0&amp;size=20" enabled="true">
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments" enabled="true">
+            <collectionProp name="Arguments.arguments">
+              <elementProp name="page" elementType="HTTPArgument">
+                <stringProp name="Argument.name">page</stringProp>
+                <stringProp name="Argument.value">0</stringProp>
+              </elementProp>
+              <elementProp name="size" elementType="HTTPArgument">
+                <stringProp name="Argument.name">size</stringProp>
+                <stringProp name="Argument.value">20</stringProp>
+              </elementProp>
+            </collectionProp>
+          </elementProp>
+          <stringProp name="HTTPSampler.domain">${HOST}</stringProp>
+          <stringProp name="HTTPSampler.port">${PORT}</stringProp>
+          <stringProp name="HTTPSampler.protocol">http</stringProp>
+          <stringProp name="HTTPSampler.path">/api/v1/requests</stringProp>
+          <stringProp name="HTTPSampler.method">GET</stringProp>
+          <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+          <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+          <stringProp name="HTTPSampler.implementation">HttpClient4</stringProp>
+          <stringProp name="HTTPSampler.response_timeout">30000</stringProp>
+        </HTTPSamplerProxy>
+
+        <hashTree>
+          <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="响应时间 &lt; 5s" enabled="true">
+            <collectionProp name="Asserion.test_strings"/>
+            <stringProp name="Assertion.custom_message">响应时间超过 5s</stringProp>
+            <intProp name="Assertion.test_type">2</intProp>
+            <doubleProp>
+              <name>Assertion.expectedResponseTime</name>
+              <value>5000</value>
+            </doubleProp>
+          </ResponseAssertion>
+          <hashTree/>
+        </hashTree>
+
+        <!-- 吞吐量报告（通过汇总报告中的 Throughput 判断） -->
+        <ResultCollector guiclass="StatGraphVisualizer" testclass="ResultCollector" testname="汇总报告" enabled="true">
+          <boolProp name="ResultCollector.error_logging">false</boolProp>
+          <objProp>
+            <name>saveConfig</name>
+            <value class="SaveService">
+              <boolProp name="saveTimestamp">false</boolProp>
+              <boolProp name="saveLatency">true</boolProp>
+              <boolProp name="saveSuccess">true</boolProp>
+            </value>
+          </objProp>
+          <stringProp name="filename"/>
+        </ResultCollector>
+        <hashTree/>
+      </hashTree>
+    </hashTree>
+  </hashTree>
+</jmeterTestPlan>

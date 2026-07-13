@@ -1,0 +1,40 @@
+{
+  "_comment": "llm-agent 监控模板 v1.0.0 — 慢 LLM 调用 TopN",
+  "queryKey": "llm-agent.log_llm_http_request.slow",
+  "queryName": "慢 LLM 调用 TopN",
+  "tableKey": "llm-agent.log_llm_http_request",
+  "queryType": "TEMPLATE",
+  "description": "查询超过指定耗时的 LLM 调用（按 spendTime 降序），用于性能分析",
+  "mongoFilter": {
+    "spendTime": { "$gte": ":minSpendMs" },
+    "createTime": { "$gte": ":startTime" }
+  },
+  "mongoSort": { "spendTime": -1 },
+  "mongoLimit": 50,
+  "parameters": [
+    {
+      "name": "minSpendMs",
+      "dataType": "BIGINT",
+      "required": true,
+      "label": "最小耗时（毫秒）",
+      "defaultValue": 3000,
+      "placeholder": "3000"
+    },
+    {
+      "name": "startTime",
+      "dataType": "DATETIME",
+      "required": true,
+      "label": "开始时间",
+      "defaultValue": "now-1d",
+      "placeholder": "2026-07-01 00:00:00"
+    }
+  ],
+  "resultConfig": {
+    "defaultColumns": [
+      "id", "requestId", "agent", "modelType", "spendTime",
+      "promptTokens", "completionTokens", "successExpression", "createTime"
+    ]
+  },
+  "shareConfig": { "public": true },
+  "version": "1.0.0"
+}

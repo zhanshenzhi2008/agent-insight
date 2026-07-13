@@ -1,0 +1,29 @@
+{
+  "_comment": "llm-agent 监控模板 v1.0.0 — 按 requestId 查 Agent 实例",
+  "queryKey": "llm-agent.log_llm_agent_main.by-request",
+  "queryName": "按 RequestId 查 Agent 实例",
+  "tableKey": "llm-agent.log_llm_agent_main",
+  "queryType": "TEMPLATE",
+  "description": "通过 requestId 精确查询单次请求的所有 Agent 实例（含入口和子 Agent）",
+  "mongoFilter": { "requestId": { "$eq": ":requestId" } },
+  "mongoSort": { "createTime": -1 },
+  "mongoLimit": 50,
+  "parameters": [
+    {
+      "name": "requestId",
+      "dataType": "VARCHAR",
+      "required": true,
+      "label": "Request ID",
+      "placeholder": "请输入 requestId"
+    }
+  ],
+  "resultConfig": {
+    "defaultColumns": [
+      "id", "bizId", "requestId", "agentId", "topAgentName",
+      "entranceAgent", "taskStatus", "agentStatus", "success",
+      "createTime", "agentEndTime"
+    ]
+  },
+  "shareConfig": { "public": true },
+  "version": "1.0.0"
+}

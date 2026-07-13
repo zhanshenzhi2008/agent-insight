@@ -1,0 +1,23 @@
+{
+  "_comment": "llm-agent 监控模板 v1.0.0 — log_llm_agent_main.taskTryCount 列定义（重试指标）",
+  "columnKey": "llm-agent.log_llm_agent_main.taskTryCount",
+  "tableKey": "llm-agent.log_llm_agent_main",
+  "columnName": "taskTryCount",
+  "displayName": "Task 重试次数",
+  "description": "Task 重试次数",
+  "dataType": "INT",
+  "columnType": "MEASURE",
+  "sortable": true,
+  "filterable": true,
+  "required": false,
+  "nullable": true,
+  "displayOrder": 14,
+  "width": 110,
+  "minWidth": 80,
+  "maxWidth": 140,
+  "formatConfig": { "type": "TEXT" },
+  "renderConfig": { "type": "TEXT" },
+  "filterConfig": { "type": "NUMBER_RANGE", "operator": "BETWEEN" },
+  "aggregateConfig": { "enableSum": true, "enableAvg": true, "enableCount": true },
+  "version": "1.0.0"
+}

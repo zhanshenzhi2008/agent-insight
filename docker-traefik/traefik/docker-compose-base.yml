@@ -1,0 +1,69 @@
+# =============================================================================
+# Traefik 基础服务 docker-compose.yml
+# =============================================================================
+# 位置：/opt/docker/docker-compose-base.yml
+# 说明：
+#   - 包含 Traefik（反向代理）和 Portainer（容器管理）
+#   - 这是全局基础设施，只需启动一次
+#
+# 目录结构（部署后）：
+#   /opt/docker/
+#   ├── docker-compose-base.yml      ← 本文件
+#   ├── traefik/
+#   │   ├── traefik.yml
+#   │   ├── acme.json
+#   │   ├── logs/
+#   │   └── dynamic/
+#   └── portainer/
+#       └── data/
+#
+# 使用方法：
+#   1. 将本文件复制到 /opt/docker/docker-compose-base.yml
+#   2. 将 traefik/traefik.yml 复制到 /opt/docker/traefik/traefik.yml
+#   3. 将 traefik/dynamic/https.yml 复制到 /opt/docker/traefik/dynamic/https.yml
+#   4. mkdir -p /opt/docker/traefik && chmod 600 /opt/docker/traefik/acme.json
+#   5. cd /opt/docker && docker compose -f docker-compose-base.yml up -d
+# =============================================================================
+
+services:
+  # ---------------------------------------------------------------------------
+  # Traefik 反向代理 + 自动 HTTPS
+  # ---------------------------------------------------------------------------
+  traefik:
+    image: traefik:v3.0
+    container_name: traefik
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"   # Dashboard（仅内网访问）
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik/traefik.yml:/traefik.yml:ro
+      - ./traefik/dynamic:/etc/traefik/dynamic:ro
+      - ./traefik/acme.json:/acme.json
+      - ./traefik/logs:/var/log/traefik
+    environment:
+      - TZ=Asia/Shanghai
+    networks:
+      - proxy
+
+  # ---------------------------------------------------------------------------
+  # Portainer 可视化管理（可选）
+  # ---------------------------------------------------------------------------
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: portainer
+    restart: unless-stopped
+    ports:
+      - "9443:9443"    # HTTPS 管理界面
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./portainer/data:/data
+    networks:
+      - proxy
+
+networks:
+  proxy:
+    name: proxy
+    driver: bridge

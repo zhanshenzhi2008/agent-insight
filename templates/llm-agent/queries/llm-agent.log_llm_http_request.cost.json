@@ -1,0 +1,43 @@
+{
+  "_comment": "llm-agent 监控模板 v1.0.0 — LLM 成本聚合",
+  "queryKey": "llm-agent.log_llm_http_request.cost",
+  "queryName": "LLM 成本（待 v1.1 启用 aggregation 管道）",
+  "tableKey": "llm-agent.log_llm_http_request",
+  "queryType": "TEMPLATE",
+  "description": "按时间范围聚合 LLM 调用成本（v1.0 仅返回明细，v1.1 启用 Mongo aggregation 管道实现按 model 维度分摊）",
+  "mongoFilter": {
+    "createTime": {
+      "$gte": ":startTime",
+      "$lte": ":endTime"
+    }
+  },
+  "mongoSort": { "createTime": -1 },
+  "mongoLimit": 1000,
+  "parameters": [
+    {
+      "name": "startTime",
+      "dataType": "DATETIME",
+      "required": true,
+      "label": "开始时间",
+      "defaultValue": "now-7d",
+      "placeholder": "2026-07-01 00:00:00"
+    },
+    {
+      "name": "endTime",
+      "dataType": "DATETIME",
+      "required": true,
+      "label": "结束时间",
+      "defaultValue": "now",
+      "placeholder": "2026-07-08 00:00:00"
+    }
+  ],
+  "resultConfig": {
+    "defaultColumns": [
+      "id", "requestId", "agent", "modelType", "spendTime",
+      "promptTokens", "completionTokens", "createTime"
+    ],
+    "_note": "v1.1 将开启 aggregation 管道，按 modelType 聚合 sum(promptTokens) / sum(completionTokens)"
+  },
+  "shareConfig": { "public": true },
+  "version": "1.0.0"
+}

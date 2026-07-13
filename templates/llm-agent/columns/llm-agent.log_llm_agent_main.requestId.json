@@ -1,0 +1,29 @@
+{
+  "_comment": "llm-agent 监控模板 v1.0.0 — log_llm_agent_main.requestId 列定义（最常用 filter + link）",
+  "columnKey": "llm-agent.log_llm_agent_main.requestId",
+  "tableKey": "llm-agent.log_llm_agent_main",
+  "columnName": "requestId",
+  "displayName": "Request ID",
+  "description": "请求唯一 ID，per-request 日志文件名即此 ID",
+  "dataType": "VARCHAR",
+  "columnType": "DIMENSION",
+  "sortable": true,
+  "filterable": true,
+  "required": true,
+  "nullable": false,
+  "displayOrder": 3,
+  "width": 200,
+  "minWidth": 120,
+  "maxWidth": 300,
+  "fixedPosition": "LEFT",
+  "formatConfig": { "type": "TEXT" },
+  "renderConfig": {
+    "type": "LINK",
+    "props": {
+      "href": "/log-viewer?requestId={value}",
+      "target": "_blank"
+    }
+  },
+  "filterConfig": { "type": "INPUT", "operator": "EQ" },
+  "version": "1.0.0"
+}

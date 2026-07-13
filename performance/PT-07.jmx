@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jmeterTestPlan version="5.6.3" jmeter="5.6.3" xmlns="jmeter">
+  <hashTree>
+    <!-- PT-07: 10用户同时查询不同数据源，目标 P99 < 3s -->
+    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="PT-07: 10用户同时查询不同数据源" enabled="true">
+      <stringProp name="TestPlan.comments">目标: P99 &lt; 3s | 场景: 10个并发用户同时查询不同数据源</stringProp>
+      <boolProp name="TestPlan.functional_mode">false</boolProp>
+      <boolProp name="TestPlan.tearDown_on_shutdown">true</boolProp>
+      <boolProp name="TestPlan.serialize_threadgroups">false</boolProp>
+      <elementProp name="TestPlan.user_defined_variables" elementType="Arguments">
+        <collectionProp name="Arguments.arguments"/>
+      </elementProp>
+    </TestPlan>
+
+    <Arguments guiclass="ArgumentsPanel" testclass="Arguments" testname="全局变量" enabled="true">
+      <collectionProp name="Arguments.arguments">
+        <elementProp name="HOST" elementType="Argument">
+          <stringProp name="Argument.name">HOST</stringProp>
+          <stringProp name="Argument.value">localhost</stringProp>
+        </elementProp>
+        <elementProp name="PORT" elementType="Argument">
+          <stringProp name="Argument.name">PORT</stringProp>
+          <stringProp name="Argument.value">9280</stringProp>
+        </elementProp>
+      </collectionProp>
+    </Arguments>
+
+    <!-- 测试数据：10 个不同的数据源 -->
+    <Arguments guiclass="ArgumentsPanel" testclass="Arguments" testname="测试数据(datasourceKeys)" enabled="true">
+      <collectionProp name="Arguments.arguments">
+        <elementProp name="DS_01" elementType="Argument">
+          <stringProp name="Argument.name">DS_01</stringProp>
+          <stringProp name="Argument.value">test_mysql_orders</stringProp>
+        </elementProp>
+        <elementProp name="DS_02" elementType="Argument">
+          <stringProp name="Argument.name">DS_02</stringProp>
+          <stringProp name="Argument.value">test_mysql_products</stringProp>
+        </elementProp>
+        <elementProp name="DS_03" elementType="Argument">
+          <stringProp name="Argument.name">DS_03</stringProp>
+          <stringProp name="Argument.value">test_pg_sales</stringProp>
+        </elementProp>
+        <elementProp name="DS_04" elementType="Argument">
+          <stringProp name="Argument.name">DS_04</stringProp>
+          <stringProp name="Argument.value">test_pg_inventory</stringProp>
+        </elementProp>
+        <elementProp name="DS_05" elementType="Argument">
+          <stringProp name="Argument.name">DS_05</stringProp>
+          <stringProp name="Argument.value">test_mongo_logs</stringProp>
+        </elementProp>
+        <elementProp name="DS_06" elementType="Argument">
+          <stringProp name="Argument.name">DS_06</stringProp>
+          <stringProp name="Argument.value">test_mongo_events</stringProp>
+        </elementProp>
+        <elementProp name="DS_07" elementType="Argument">
+          <stringProp name="Argument.name">DS_07</stringProp>
+          <stringProp name="Argument.value">test_mysql_customers</stringProp>
+        </elementProp>
+        <elementProp name="DS_08" elementType="Argument">
+          <stringProp name="Argument.name">DS_08</stringProp>
+          <stringProp name="Argument.value">test_pg_reports</stringProp>
+        </elementProp>
+        <elementProp name="DS_09" elementType="Argument">
+          <stringProp name="Argument.name">DS_09</stringProp>
+          <stringProp name="Argument.value">test_mongo_metrics</stringProp>
+        </elementProp>
+        <elementProp name="DS_10" elementType="Argument">
+          <stringProp name="Argument.name">DS_10</stringProp>
+          <stringProp name="Argument.value">test_mysql_transactions</stringProp>
+        </elementProp>
+      </collectionProp>
+    </Arguments>
+
+    <hashTree>
+      <!-- 10 线程，ramp-up 2s，循环 5 次 -->
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="PT-07 ThreadGroup" enabled="true">
+        <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControllerGui" testclass="LoopController" testname="Loop Controller">
+          <intProp name="LoopController.loops">5</intProp>
+          <boolProp name="LoopController.continue_forever">false</boolProp>
+        </elementProp>
+        <stringProp name="ThreadGroup.num_threads">10</stringProp>
+        <stringProp name="ThreadGroup.ramp_time">2</stringProp>
+        <boolProp name="ThreadGroup.scheduler">false</boolProp>
+      </ThreadGroup>
+
+      <hashTree>
+        <!-- 每个线程查询不同的数据源 -->
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="POST /api/v1/explorer/query/execute" enabled="true">
+          <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments" enabled="true">
+            <collectionProp name="Arguments.arguments">
+              <elementProp name="body" elementType="HTTPArgument">
+                <stringProp name="Argument.name">body</stringProp>
+                <stringProp name="Argument.value">{
+  "datasourceKey": "${__V(DS_0${__threadNum})}",
+  "page": 0,
+  "pageSize": 20
+}</stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+              </elementProp>
+            </collectionProp>
+          </elementProp>
+          <stringProp name="HTTPSampler.domain">${HOST}</stringProp>
+          <stringProp name="HTTPSampler.port">${PORT}</stringProp>
+          <stringProp name="HTTPSampler.protocol">http</stringProp>
+          <stringProp name="HTTPSampler.contentEncoding">UTF-8</stringProp>
+          <stringProp name="HTTPSampler.path">/api/v1/explorer/query/execute</stringProp>
+          <stringProp name="HTTPSampler.method">POST</stringProp>
+          <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+          <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+          <stringProp name="HTTPSampler.implementation">HttpClient4</stringProp>
+          <stringProp name="HTTPSampler.response_timeout">20000</stringProp>
+        </HTTPSamplerProxy>
+
+        <hashTree>
+          <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="响应时间 &lt; 3s" enabled="true">
+            <collectionProp name="Asserion.test_strings"/>
+            <stringProp name="Assertion.custom_message">响应时间超过 3s</stringProp>
+            <intProp name="Assertion.test_type">2</intProp>
+            <doubleProp>
+              <name>Assertion.expectedResponseTime</name>
+              <value>3000</value>
+            </doubleProp>
+          </ResponseAssertion>
+          <hashTree/>
+        </hashTree>
+
+        <ResultCollector guiclass="StatGraphVisualizer" testclass="ResultCollector" testname="汇总报告" enabled="true">
+          <boolProp name="ResultCollector.error_logging">false</boolProp>
+          <objProp>
+            <name>saveConfig</name>
+            <value class="SaveService">
+              <boolProp name="saveTimestamp">false</boolProp>
+              <boolProp name="saveLatency">true</boolProp>
+              <boolProp name="saveSuccess">true</boolProp>
+            </value>
+          </objProp>
+          <stringProp name="filename"/>
+        </ResultCollector>
+        <hashTree/>
+      </hashTree>
+    </hashTree>
+  </hashTree>
+</jmeterTestPlan>

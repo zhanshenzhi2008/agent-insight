@@ -1,0 +1,44 @@
+# =============================================================================
+# Docker Ignore for Backend
+# 忽略不需要打包进镜像的文件
+# =============================================================================
+
+# 版本控制
+.git
+.gitignore
+
+# IDE
+.idea
+.vscode
+*.iml
+
+# 构建产物（重新构建时会重新生成）
+**/target/
+
+# 测试
+**/src/test/
+**/src/test/
+
+# 文档
+README.md
+docs/
+
+# Docker 相关（防止递归）
+Dockerfile*
+docker-compose*.yml
+docker-entrypoint.sh
+
+# 环境配置
+.env
+.env.*
+*.env
+
+# 其他
+*.md
+*.txt
+*.log
+*.sh
+performance/
+
+# node_modules（后端不需要）
+node_modules/

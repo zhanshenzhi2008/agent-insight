@@ -1,0 +1,22 @@
+{
+  "_comment": "llm-agent 监控模板 v1.0.0 — log_llm_agent_main.shiftMustTask 列定义",
+  "columnKey": "llm-agent.log_llm_agent_main.shiftMustTask",
+  "tableKey": "llm-agent.log_llm_agent_main",
+  "columnName": "shiftMustTask",
+  "displayName": "Shift 强制任务",
+  "description": "是否被强制转移执行的任务",
+  "dataType": "INT",
+  "columnType": "DIMENSION",
+  "sortable": true,
+  "filterable": true,
+  "required": false,
+  "nullable": true,
+  "displayOrder": 15,
+  "width": 120,
+  "minWidth": 100,
+  "maxWidth": 160,
+  "formatConfig": { "type": "TEXT" },
+  "renderConfig": { "type": "TEXT" },
+  "filterConfig": { "type": "INPUT", "operator": "EQ" },
+  "version": "1.0.0"
+}

@@ -1,0 +1,32 @@
+{
+  "_comment": "llm-agent 监控模板 v1.0.0 — 失败任务列表",
+  "queryKey": "llm-agent.log_llm_task_detail.failures",
+  "queryName": "失败任务明细",
+  "tableKey": "llm-agent.log_llm_task_detail",
+  "queryType": "TEMPLATE",
+  "description": "查询指定时间范围内的失败任务列表（用于发现高频失败节点）",
+  "mongoFilter": {
+    "success": { "$eq": false },
+    "createTime": { "$gte": ":startTime" }
+  },
+  "mongoSort": { "createTime": -1 },
+  "mongoLimit": 200,
+  "parameters": [
+    {
+      "name": "startTime",
+      "dataType": "DATETIME",
+      "required": true,
+      "label": "开始时间",
+      "defaultValue": "now-1d",
+      "placeholder": "2026-07-01 00:00:00"
+    }
+  ],
+  "resultConfig": {
+    "defaultColumns": [
+      "id", "requestId", "agentName", "taskName", "taskUniqueName",
+      "taskType", "taskIndex", "fullPath", "resultType", "createTime"
+    ]
+  },
+  "shareConfig": { "public": true },
+  "version": "1.0.0"
+}

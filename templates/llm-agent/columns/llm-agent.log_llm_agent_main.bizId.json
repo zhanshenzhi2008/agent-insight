@@ -1,0 +1,23 @@
+{
+  "_comment": "llm-agent 监控模板 v1.0.0 — log_llm_agent_main.bizId 列定义（最常用 filter）",
+  "columnKey": "llm-agent.log_llm_agent_main.bizId",
+  "tableKey": "llm-agent.log_llm_agent_main",
+  "columnName": "bizId",
+  "displayName": "业务实例 ID",
+  "description": "业务实例 ID（一个 bizId 可对应多个 requestId）",
+  "dataType": "VARCHAR",
+  "columnType": "DIMENSION",
+  "sortable": true,
+  "filterable": true,
+  "required": false,
+  "nullable": true,
+  "displayOrder": 2,
+  "width": 140,
+  "minWidth": 100,
+  "maxWidth": 200,
+  "fixedPosition": "LEFT",
+  "formatConfig": { "type": "TEXT" },
+  "renderConfig": { "type": "TEXT" },
+  "filterConfig": { "type": "INPUT", "operator": "EQ" },
+  "version": "1.0.0"
+}

@@ -1,0 +1,4 @@
+# 凭据文件（部署时按 envs/*.env.example 复制并填写）
+# 保留 example 模板可入库
+envs/*.env
+!envs/*.env.example
