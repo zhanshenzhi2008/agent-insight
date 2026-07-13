@@ -40,9 +40,13 @@ services:
   # 数据库连接：mysql / mongodb / redis 容器名需在 db-net 中可解析
   # ---------------------------------------------------------------------------
   agent-insight-backend:
-    build:
-      context: ../..
-      dockerfile: Dockerfile
+    # 注意：此 build 配置仅在“服务器上直接放源码并构建镜像”时使用。
+    # 若你当前云端部署采用 GitHub Actions 构建好的镜像，请注释掉下方 build，
+    # 改用 image: ghcr.io/<owner>/agent-insight/backend:<tag>。
+    #build:
+    #  context: ../../agent-insight-server
+    #  dockerfile: Dockerfile
+    image: ghcr.io/devopstools/agent-insight/backend:latest
     container_name: agent-insight-backend
     restart: unless-stopped
     expose:
@@ -98,11 +102,15 @@ services:
   #   - 各自配置独立的 Traefik 路由
   # ---------------------------------------------------------------------------
   agent-insight-frontend:
-    build:
-      context: ../../agent-insight-web
-      dockerfile: ../../Dockerfile.web
-      args:
-        VITE_API_BASE_URL: /api
+    # 注意：此 build 配置仅在“服务器上直接放源码并构建镜像”时使用。
+    # 若你当前云端部署采用 GitHub Actions 构建好的镜像，请注释掉下方 build，
+    # 改用 image: ghcr.io/<owner>/agent-insight/frontend:<tag>。
+    #build:
+    #  context: ../../agent-insight-web
+    #  dockerfile: ../../agent-insight-web/Dockerfile
+    #  args:
+    #    VITE_API_BASE_URL: /api
+    image: ghcr.io/devopstools/agent-insight/frontend:latest
     container_name: agent-insight-frontend
     restart: unless-stopped
     expose:

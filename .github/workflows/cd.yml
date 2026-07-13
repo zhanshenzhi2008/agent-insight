@@ -45,7 +45,7 @@ jobs:
         if: github.event.inputs.service == 'all' || github.event.inputs.service == 'backend' || github.event.inputs.service == ''
         uses: docker/build-push-action@v6
         with:
-          context: .
+          context: ./agent-insight-server
           file: ./Dockerfile
           push: true
           tags: |
@@ -60,7 +60,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: ./agent-insight-web
-          file: ../Dockerfile.web
+          file: ./Dockerfile
           push: true
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/frontend:${{ github.sha }}
