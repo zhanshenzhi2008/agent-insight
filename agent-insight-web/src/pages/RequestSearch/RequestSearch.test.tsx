@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, cleanup, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import RequestSearchPage from '../../pages/RequestSearch/index';
 
@@ -67,43 +67,56 @@ describe('RequestSearchPage', () => {
     });
   });
 
+  afterEach(() => {
+    cleanup();
+  });
+
   it('renders the page title', async () => {
     render(<RequestSearchPage />);
-    expect(screen.getByText('请求检索')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('请求检索')).toBeInTheDocument();
+    });
   });
 
   it('renders the search form fields', async () => {
     render(<RequestSearchPage />);
-    expect(screen.getByPlaceholderText('Request ID')).toBeInTheDocument();
-    // antd AutoComplete 的 placeholder 渲染在 aria-label 而非 placeholder 属性
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText('Request ID')).toBeInTheDocument();
+    });
     expect(screen.getByText('Agent 名称')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /搜索/i })).toBeInTheDocument();
   });
 
   it('renders table with data after loading', async () => {
     render(<RequestSearchPage />);
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(screen.getByText('req-001')).toBeInTheDocument();
     });
     expect(screen.getByText('DataAgent')).toBeInTheDocument();
   });
 
   it('renders loading state while fetching', async () => {
-    mockSearch.mockImplementation(
-      () => new Promise(() => {}), // never resolves
-    );
+    let resolveFetch: (value: { data: typeof mockData }) => void;
+    const pendingFetch = new Promise<{ data: typeof mockData }>((resolve) => {
+      resolveFetch = resolve;
+    });
+    mockSearch.mockImplementation(() => pendingFetch);
+
     render(<RequestSearchPage />);
-    // Loading indicator should appear
-    await vi.waitFor(() => {
+
+    await waitFor(() => {
       const table = document.querySelector('.ant-table');
       expect(table).toBeInTheDocument();
     });
+
+    resolveFetch!({ data: mockData });
+    await waitFor(() => expect(screen.getByText('req-001')).toBeInTheDocument());
   });
 
   it('navigates to overview when clicking overview button', async () => {
     const user = userEvent.setup();
     render(<RequestSearchPage />);
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(screen.getByText('req-001')).toBeInTheDocument();
     });
     const overviewBtn = screen.getAllByText('概览')[0];
@@ -114,7 +127,7 @@ describe('RequestSearchPage', () => {
   it('navigates to trace when clicking trace button', async () => {
     const user = userEvent.setup();
     render(<RequestSearchPage />);
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(screen.getByText('req-001')).toBeInTheDocument();
     });
     const traceBtn = screen.getAllByText('轨迹')[0];
@@ -127,7 +140,7 @@ describe('RequestSearchPage', () => {
       data: { code: -1, message: '查询失败', data: null },
     });
     render(<RequestSearchPage />);
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(screen.getByText('请求检索')).toBeInTheDocument();
     });
   });
