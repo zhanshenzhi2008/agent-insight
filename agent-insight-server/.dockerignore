@@ -26,7 +26,6 @@ docs/
 # Docker 相关（防止递归）
 Dockerfile*
 docker-compose*.yml
-docker-entrypoint.sh
 
 # 环境配置
 .env
@@ -37,8 +36,9 @@ docker-entrypoint.sh
 *.md
 *.txt
 *.log
-*.sh
 performance/
+# 允许后端启动脚本进入构建上下文
+!docker-entrypoint.sh
 
 # node_modules（后端不需要）
 node_modules/
