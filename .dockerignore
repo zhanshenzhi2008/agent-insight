@@ -1,0 +1,41 @@
+# =============================================================================
+# Docker Ignore for Backend Multi-Module Build
+# 适用于以仓库根目录为 context 的 Docker 构建
+# =============================================================================
+
+# 版本控制
+.git
+.gitignore
+
+# IDE
+.idea
+.vscode
+*.iml
+
+# 构建产物（重新构建时会重新生成）
+**/target/
+
+# 测试
+**/src/test/
+
+# 文档
+README.md
+docs/
+
+# Docker 相关（防止递归）
+Dockerfile*
+docker-compose*.yml
+
+# 环境配置
+.env
+.env.*
+*.env
+
+# 其他
+*.md
+*.txt
+*.log
+performance/
+
+# node_modules（不需要）
+node_modules/
