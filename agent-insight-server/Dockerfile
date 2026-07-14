@@ -5,7 +5,7 @@
 # 运行: docker run -d -p 9280:9280 --name agent-insight-server agent-insight-server:1.0.0
 # =============================================================================
 
-FROM eclipse-temurin:21-jdk-alpine AS builder
+FROM maven:3.9.9-eclipse-temurin-21-alpine AS builder
 
 WORKDIR /app
 
