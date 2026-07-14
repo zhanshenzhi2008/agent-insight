@@ -99,7 +99,9 @@ cd /path/to/agent-insight
 # 服务器连接
 gh secret set DEPLOY_HOST --body "你的服务器IP" --env xcy
 gh secret set DEPLOY_USER --body "deploy" --env xcy
-gh secret set DEPLOY_SSH_KEY --body "你的SSH私钥内容" --env xcy
+## github_actions推荐使用 < file 方式。比如ssh文件是 ~/.ssh/github_actions
+#gh secret set DEPLOY_SSH_KEY --body "你的SSH私钥内容" --env xcy
+gh secret set DEPLOY_SSH_KEY < ~/.ssh/你的SSH文件名 --env xcy
 gh secret set DEPLOY_SSH_PORT --body "22" --env xcy
 gh secret set DEPLOY_PATH --body "/opt/docker/agent-insight" --env xcy
 
