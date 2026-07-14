@@ -5,7 +5,7 @@
 # 运行: docker run -d -p 80:80 --name agent-insight-web agent-insight-web:1.0.0
 # =============================================================================
 
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder
 
 WORKDIR /app
 
