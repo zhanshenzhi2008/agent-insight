@@ -138,12 +138,12 @@ gh secret set DEPLOY_REGISTRY_TOKEN --body "你的GitHub_PAT" --env xcy
 
 ```bash
 # 生成 SSH 密钥对
-ssh-keygen -t ed25519 -C "github-actions@agent-insight" -f ~/.ssh/github_actions
+ssh-keygen -t ed25519 -C "github-actions@xcy" -f ~/.ssh/github_actions
 
 # 查看公钥（添加到服务器）
 cat ~/.ssh/github_actions.pub
 # 输出类似：
-# ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAA... github-actions@agent-insight
+# ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAA... github-actions@xcy
 
 # 查看私钥（添加到 GitHub Secrets）
 cat ~/.ssh/github_actions
@@ -153,7 +153,9 @@ cat ~/.ssh/github_actions
 
 ```bash
 # 将公钥追加到服务器的 authorized_keys
-ssh root@YOUR_SERVER_IP "mkdir -p ~/.ssh && echo 'YOUR_PUBLIC_KEY' >> ~/.ssh/authorized_keys"
+ssh root@你的服务器IP "mkdir -p ~/.ssh && echo 'YOUR_PUBLIC_KEY' >> ~/.ssh/authorized_keys"
+ 或
+ ssh-copy-id -i ~/.ssh/github_actions.pub root@你的服务器IP
 ```
 
 ### 3.3 将私钥添加到 GitHub Secrets
