@@ -79,14 +79,15 @@ jobs:
     environment: xcy
 
     steps:
-      - name: Setup SSH key
+      - name: Setup SSH Agent
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.DEPLOY_SSH_KEY }}
+
+      - name: Add server to known_hosts
         run: |
-          set -ex
           mkdir -p ~/.ssh
-          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-          ls -la ~/.ssh/deploy_key
-          head -c 50 ~/.ssh/deploy_key | od -c | head -3
+          ssh-keyscan -p ${{ secrets.DEPLOY_SSH_PORT || '22' }} -H ${{ secrets.DEPLOY_HOST }} >> ~/.ssh/known_hosts
 
       - name: Deploy to remote server via SSH
         uses: appleboy/ssh-action@v1
