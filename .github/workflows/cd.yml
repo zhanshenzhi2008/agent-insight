@@ -94,7 +94,7 @@ jobs:
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
-          key_path: ~/.ssh/deploy_key
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
           port: ${{ secrets.DEPLOY_SSH_PORT || '22' }}
           envs: SERVICE_SELECTED,DEPLOY_PATH,REGISTRY,IMAGE_NAME,REPO_OWNER,GITHUB_ACTOR,GITHUB_SHA,DEPLOY_REGISTRY
           script: |
