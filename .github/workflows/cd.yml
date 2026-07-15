@@ -82,15 +82,21 @@ jobs:
       - name: Dump DEPLOY_SSH_KEY fingerprint
         run: |
           mkdir -p ~/.ssh
-          printf '%s' "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
+          printf '%s\n' "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           echo "=== Key file info ==="
           ls -la ~/.ssh/deploy_key
           wc -c ~/.ssh/deploy_key
+          echo "=== First line ==="
           head -1 ~/.ssh/deploy_key
+          echo "=== Last line ==="
           tail -1 ~/.ssh/deploy_key
+          echo "=== sha256 of secret key ==="
+          shasum -a 256 ~/.ssh/deploy_key
           echo "=== ssh-keygen -l (fingerprint) ==="
           ssh-keygen -l -f ~/.ssh/deploy_key
+          echo "=== Try public key extract ==="
+          ssh-keygen -y -f ~/.ssh/deploy_key
           echo "=== known_hosts add ==="
           ssh-keyscan -p ${{ secrets.DEPLOY_SSH_PORT || '22' }} -H ${{ secrets.DEPLOY_HOST }} >> ~/.ssh/known_hosts
           echo "=== Manual ssh test ==="
