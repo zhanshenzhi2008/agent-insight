@@ -155,7 +155,7 @@ cat ~/.ssh/github_actions
 # 将公钥追加到服务器的 authorized_keys。注意如果github action DEPLOY_USER 设置的用户访问是deploy则用deploy用户，切记不要用错用户，否则及时添加成功也没权限访问
 ssh deploy@你的服务器IP "mkdir -p ~/.ssh && echo 'YOUR_PUBLIC_KEY' >> ~/.ssh/authorized_keys"
  或
- ssh-copy-id -i ~/.ssh/github_actions.pub deploy@你的服务器IP
+ ssh-copy-id -i ~/.ssh/github_actions.pub  -p 你的服务器PORT deploy@你的服务器IP
 ```
 
 ### 3.3 将私钥添加到 GitHub Secrets
