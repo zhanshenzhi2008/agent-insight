@@ -84,18 +84,12 @@ jobs:
           mkdir -p ~/.ssh
           ssh-keyscan -p ${{ secrets.DEPLOY_SSH_PORT || '22' }} -H ${{ secrets.DEPLOY_HOST }} >> ~/.ssh/known_hosts
 
-      - name: Write SSH key to file
-        run: |
-          mkdir -p ~/.ssh
-          printf '%s' "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-
       - name: Deploy to remote server via SSH
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
-          key_path: ~/.ssh/deploy_key
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
           port: ${{ secrets.DEPLOY_SSH_PORT || '22' }}
           envs: SERVICE_SELECTED,DEPLOY_PATH,REGISTRY,IMAGE_NAME,REPO_OWNER,GITHUB_ACTOR,GITHUB_SHA,DEPLOY_REGISTRY
           script: |
