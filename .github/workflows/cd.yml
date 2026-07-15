@@ -79,10 +79,22 @@ jobs:
     environment: xcy
 
     steps:
-      - name: Add server to known_hosts
+      - name: Dump DEPLOY_SSH_KEY fingerprint
         run: |
           mkdir -p ~/.ssh
+          printf '%s' "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          echo "=== Key file info ==="
+          ls -la ~/.ssh/deploy_key
+          wc -c ~/.ssh/deploy_key
+          head -1 ~/.ssh/deploy_key
+          tail -1 ~/.ssh/deploy_key
+          echo "=== ssh-keygen -l (fingerprint) ==="
+          ssh-keygen -l -f ~/.ssh/deploy_key
+          echo "=== known_hosts add ==="
           ssh-keyscan -p ${{ secrets.DEPLOY_SSH_PORT || '22' }} -H ${{ secrets.DEPLOY_HOST }} >> ~/.ssh/known_hosts
+          echo "=== Manual ssh test ==="
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no -o BatchMode=yes -p ${{ secrets.DEPLOY_SSH_PORT || '22' }} ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} "echo SSH_TEST_OK" || echo "SSH_TEST_FAIL exit=$?"
 
       - name: Deploy to remote server via SSH
         uses: appleboy/ssh-action@v1
@@ -91,101 +103,7 @@ jobs:
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           port: ${{ secrets.DEPLOY_SSH_PORT || '22' }}
-          envs: SERVICE_SELECTED,DEPLOY_PATH,REGISTRY,IMAGE_NAME,REPO_OWNER,GITHUB_ACTOR,GITHUB_SHA,DEPLOY_REGISTRY
           script: |
-            set -e
-
-            SERVICE_SELECTED="${{ github.event.inputs.service || 'all' }}"
-            DEPLOY_PATH="${{ secrets.DEPLOY_PATH }}"
-            REGISTRY="${{ env.REGISTRY }}"
-            IMAGE_NAME="${{ env.IMAGE_NAME }}"
-            GITHUB_SHA="${{ github.sha }}"
-            DEPLOY_REGISTRY="${{ secrets.DEPLOY_REGISTRY }}"
-
-            echo "========================================"
-            echo "开始部署 Agent Insight"
-            echo "服务: ${SERVICE_SELECTED}"
-            echo "Commit: ${GITHUB_SHA}"
-            echo "时间: $(date '+%Y-%m-%d %H:%M:%S')"
-            echo "========================================"
-
-            echo "=== 1. 登录 GitHub Container Registry ==="
-            echo '${{ secrets.DEPLOY_REGISTRY_TOKEN }}' | docker login ${REGISTRY} -u ${{ github.actor }} --password-stdin
-
-            echo "=== 2. 拉取 Docker 镜像 ==="
-            if [ "${SERVICE_SELECTED}" == "backend" ] || [ "${SERVICE_SELECTED}" == "all" ] || [ -z "${SERVICE_SELECTED}" ]; then
-              docker pull ${REGISTRY}/${IMAGE_NAME}/backend:${GITHUB_SHA}
-              docker tag ${REGISTRY}/${IMAGE_NAME}/backend:${GITHUB_SHA} ${REGISTRY}/${IMAGE_NAME}/backend:latest
-              echo "后端镜像拉取完成"
-            fi
-            if [ "${SERVICE_SELECTED}" == "frontend" ] || [ "${SERVICE_SELECTED}" == "all" ] || [ -z "${SERVICE_SELECTED}" ]; then
-              docker pull ${REGISTRY}/${IMAGE_NAME}/frontend:${GITHUB_SHA}
-              docker tag ${REGISTRY}/${IMAGE_NAME}/frontend:${GITHUB_SHA} ${REGISTRY}/${IMAGE_NAME}/frontend:latest
-              echo "前端镜像拉取完成"
-            fi
-
-            echo "=== 3. 进入部署目录 ==="
-            cd ${DEPLOY_PATH}
-
-            echo "=== 4. 备份环境变量文件 ==="
-            if [ -f ../envs/db.env ]; then
-              cp ../envs/db.env "../envs/db.env.backup-$(date +%Y%m%d%H%M%S)"
-            fi
-            if [ -f ../envs/ai.env ]; then
-              cp ../envs/ai.env "../envs/ai.env.backup-$(date +%Y%m%d%H%M%S)"
-            fi
-
-            echo "=== 5. 环境变量同步 ==="
-            # tee ../envs/db.env > /dev/null << EOF
-            # # 数据库连接配置（由 CI/CD 自动更新，${{ secrets.MYSQL_HOST }}）
-            # MYSQL_HOST=${{ secrets.MYSQL_HOST }}
-            # MYSQL_PORT=${{ secrets.MYSQL_PORT }}
-            # MYSQL_DB=${{ secrets.MYSQL_DB }}
-            # MYSQL_USERNAME=${{ secrets.MYSQL_USERNAME }}
-            # MYSQL_PASSWORD=${{ secrets.MYSQL_PASSWORD }}
-            # MONGODB_URI=${{ secrets.MONGODB_URI }}
-            # REDIS_HOST=${{ secrets.REDIS_HOST }}
-            # REDIS_PORT=${{ secrets.REDIS_PORT }}
-            # REDIS_PWD=${{ secrets.REDIS_PWD }}
-            # EOF
-            # tee ../envs/ai.env > /dev/null << EOF
-            # # AI 配置（由 CI/CD 自动更新）
-            # AI_ENABLED=${{ secrets.AI_ENABLED }}
-            # AI_PROVIDER=${{ secrets.AI_PROVIDER }}
-            # OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
-            # OPENAI_BASE_URL=${{ secrets.OPENAI_BASE_URL }}
-            # OPENAI_MODEL=${{ secrets.OPENAI_MODEL }}
-            # DEEPSEEK_API_KEY=${{ secrets.DEEPSEEK_API_KEY }}
-            # EOF
-            echo "⏭️  Skip: env 配置文件由人工管理，如需修改请登录服务器直接编辑 ../envs/db.env 或 ../envs/ai.env"
-
-            echo "=== 6. 重启容器（Traefik 自动发现） ==="
-            if [ "${SERVICE_SELECTED}" == "backend" ] || [ "${SERVICE_SELECTED}" == "all" ] || [ -z "${SERVICE_SELECTED}" ]; then
-              echo "重启后端服务..."
-              docker compose stop agent-insight-backend 2>/dev/null || true
-              docker compose rm -f agent-insight-backend 2>/dev/null || true
-              docker compose up -d --no-build agent-insight-backend
-            fi
-            if [ "${SERVICE_SELECTED}" == "frontend" ] || [ "${SERVICE_SELECTED}" == "all" ] || [ -z "${SERVICE_SELECTED}" ]; then
-              echo "重启前端服务..."
-              docker compose stop agent-insight-frontend 2>/dev/null || true
-              docker compose rm -f agent-insight-frontend 2>/dev/null || true
-              docker compose up -d --no-build agent-insight-frontend
-            fi
-
-            echo "=== 6. 等待容器启动 ==="
-            sleep 10
-
-            echo "=== 7. 检查容器状态 ==="
-            docker compose ps
-            docker compose logs --tail=20
-
-            echo "=== 8. 清理旧镜像（节省空间） ==="
-            docker image prune -f
-
-            echo "========================================"
-            echo "部署完成！"
-            echo "时间: $(date '+%Y-%m-%d %H:%M:%S')"
-            echo "Commit: ${GITHUB_SHA}"
-            echo "服务: ${SERVICE_SELECTED}"
-            echo "========================================"
+            echo "SSH OK"
+            whoami
+            hostname
