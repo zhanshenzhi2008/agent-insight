@@ -57,3 +57,6 @@ HELP.md
 !**/src/test/**/target/agent-insight-web/test-results/
 agent-insight-web/playwright-report/
 agent-insight-web/blob-report/
+agent-insight-web/test-results/
+agent-insight-web/playwright-report/
+agent-insight-web/blob-report/
