@@ -79,28 +79,16 @@ jobs:
     environment: xcy
 
     steps:
-      - name: Dump DEPLOY_SSH_KEY fingerprint
+      - name: Verify DEPLOY_SSH_KEY fingerprint
         run: |
           mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
           printf '%s\n' "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          echo "=== Key file info ==="
-          ls -la ~/.ssh/deploy_key
-          wc -c ~/.ssh/deploy_key
-          echo "=== First line ==="
-          head -1 ~/.ssh/deploy_key
-          echo "=== Last line ==="
-          tail -1 ~/.ssh/deploy_key
-          echo "=== sha256 of secret key ==="
-          shasum -a 256 ~/.ssh/deploy_key
-          echo "=== ssh-keygen -l (fingerprint) ==="
-          ssh-keygen -l -f ~/.ssh/deploy_key
-          echo "=== Try public key extract ==="
-          ssh-keygen -y -f ~/.ssh/deploy_key
-          echo "=== known_hosts add ==="
-          ssh-keyscan -p ${{ secrets.DEPLOY_SSH_PORT || '22' }} -H ${{ secrets.DEPLOY_HOST }} >> ~/.ssh/known_hosts
-          echo "=== Manual ssh test ==="
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no -o BatchMode=yes -p ${{ secrets.DEPLOY_SSH_PORT || '22' }} ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} "echo SSH_TEST_OK" || echo "SSH_TEST_FAIL exit=$?"
+          echo "=== Key fingerprint (字节数 + sha256 + 公开指纹) ==="
+          wc -c ~/.ssh/deploy_key | awk '{print "字节数: " $1}'
+          shasum -a 256 ~/.ssh/deploy_key | awk '{print "sha256: " $1}'
+          ssh-keygen -l -f ~/.ssh/deploy_key | awk '{print "fingerprint: " $2 " (" $1 ")"}'
 
       - name: Deploy to remote server via SSH
         uses: appleboy/ssh-action@v1
