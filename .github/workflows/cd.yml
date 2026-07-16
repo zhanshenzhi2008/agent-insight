@@ -115,7 +115,7 @@ jobs:
             whoami
             hostname
 
-            echo "${DEPLOY_REGISTRY_TOKEN}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+            docker login ghcr.io -u "${{ github.actor }}" --password-stdin <<< "${{ secrets.DEPLOY_REGISTRY_TOKEN }}"
 
             docker compose -f /opt/project/agent-insight/docker-compose.yml pull agent-insight-backend agent-insight-frontend
             docker compose -f /opt/project/agent-insight/docker-compose.yml up -d agent-insight-backend agent-insight-frontend
