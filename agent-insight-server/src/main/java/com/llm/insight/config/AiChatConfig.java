@@ -6,6 +6,7 @@ import org.springframework.ai.ollama.OllamaChatModel;
 import org.springframework.ai.deepseek.DeepSeekChatModel;
 import org.springframework.ai.anthropic.AnthropicChatModel;
 import org.springframework.ai.google.genai.GoogleGenAiChatModel;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
@@ -31,21 +32,25 @@ public class AiChatConfig {
     }
 
     @Bean("deepseekChatClient")
+    @ConditionalOnProperty(name = "spring.ai.deepseek.api-key", matchIfMissing = false)
     public ChatClient deepseekChatClient(DeepSeekChatModel model) {
         return ChatClient.create(model);
     }
 
     @Bean("ollamaChatClient")
+    @ConditionalOnProperty(name = "spring.ai.ollama.base-url", matchIfMissing = false)
     public ChatClient ollamaChatClient(OllamaChatModel model) {
         return ChatClient.create(model);
     }
 
     @Bean("anthropicChatClient")
+    @ConditionalOnProperty(name = "spring.ai.anthropic.api-key", matchIfMissing = false)
     public ChatClient anthropicChatClient(AnthropicChatModel model) {
         return ChatClient.create(model);
     }
 
     @Bean("googleGenAiChatClient")
+    @ConditionalOnProperty(name = "spring.ai.google.genai.api-key", matchIfMissing = false)
     public ChatClient googleGenAiChatClient(GoogleGenAiChatModel model) {
         return ChatClient.create(model);
     }

@@ -1,13 +1,15 @@
 package com.llm.insight.explorer.ai;
 
 import com.llm.insight.explorer.engine.ColumnAnalyzerService.AnalyzedColumn;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
@@ -18,22 +20,36 @@ import java.util.stream.Collectors;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class AiChatService {
 
     private final AiProperties aiProps;
     private final ChatClient openAiChatClient;
-    private final ChatClient deepseekChatClient;
-    private final ChatClient ollamaChatClient;
-    private final ChatClient anthropicChatClient;
-    private final ChatClient googleGenAiChatClient;
+    private final Optional<ChatClient> deepseekChatClient;
+    private final Optional<ChatClient> ollamaChatClient;
+    private final Optional<ChatClient> anthropicChatClient;
+    private final Optional<ChatClient> googleGenAiChatClient;
+
+    @Autowired
+    public AiChatService(AiProperties aiProps,
+                         @Qualifier("openAiChatClient") ChatClient openAiChatClient,
+                         @Qualifier("deepseekChatClient") Optional<ChatClient> deepseekChatClient,
+                         @Qualifier("ollamaChatClient") Optional<ChatClient> ollamaChatClient,
+                         @Qualifier("anthropicChatClient") Optional<ChatClient> anthropicChatClient,
+                         @Qualifier("googleGenAiChatClient") Optional<ChatClient> googleGenAiChatClient) {
+        this.aiProps = aiProps;
+        this.openAiChatClient = openAiChatClient;
+        this.deepseekChatClient = deepseekChatClient;
+        this.ollamaChatClient = ollamaChatClient;
+        this.anthropicChatClient = anthropicChatClient;
+        this.googleGenAiChatClient = googleGenAiChatClient;
+    }
 
     private ChatClient getClient() {
         return switch (aiProps.getProvider().toLowerCase()) {
-            case "deepseek" -> deepseekChatClient;
-            case "ollama" -> ollamaChatClient;
-            case "anthropic" -> anthropicChatClient;
-            case "google", "google-genai", "gemini" -> googleGenAiChatClient;
+            case "deepseek" -> deepseekChatClient.orElse(openAiChatClient);
+            case "ollama" -> ollamaChatClient.orElse(openAiChatClient);
+            case "anthropic" -> anthropicChatClient.orElse(openAiChatClient);
+            case "google", "google-genai", "gemini" -> googleGenAiChatClient.orElse(openAiChatClient);
             case "openai" -> openAiChatClient;
             default -> openAiChatClient;
         };
