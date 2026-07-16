@@ -54,4 +54,6 @@ Thumbs.db
 HELP.md
 !.mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
-!**/src/test/**/target/
+!**/src/test/**/target/agent-insight-web/test-results/
+agent-insight-web/playwright-report/
+agent-insight-web/blob-report/
