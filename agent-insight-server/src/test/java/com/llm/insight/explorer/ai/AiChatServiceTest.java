@@ -5,6 +5,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.ai.chat.client.ChatClient;
 
+import java.util.Optional;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
@@ -29,7 +31,12 @@ class AiChatServiceTest {
         ChatClient anyClient = mock(ChatClient.class);
         client = anyClient;
         service = new AiChatService(
-                props, client, client, client, client, client);
+                props,
+                client,
+                Optional.of(client),
+                Optional.of(client),
+                Optional.of(client),
+                Optional.of(client));
     }
 
     @Test
