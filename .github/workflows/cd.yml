@@ -25,9 +25,90 @@ env:
 
 jobs:
   # ---------------------------------------------------------------------------
-  # 构建 Docker 镜像
+  # 检测变更范围，决定是否需要 build
+  # ---------------------------------------------------------------------------
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      build_backend: ${{ steps.changes.outputs.build_backend }}
+      build_frontend: ${{ steps.changes.outputs.build_frontend }}
+      build_any: ${{ steps.changes.outputs.build_any }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Detect changed paths
+        id: changes
+        run: |
+          # workflow_dispatch 触发时跳过检测（手动选择全量构建）
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "=== 手动触发，跳过变更检测，全量构建 ==="
+            echo "build_backend=true" >> $GITHUB_OUTPUT
+            echo "build_frontend=true" >> $GITHUB_OUTPUT
+            echo "build_any=true" >> $GITHUB_OUTPUT
+            echo "build_backend=true"
+            echo "build_frontend=true"
+            echo "build_any=true"
+            exit 0
+          fi
+
+          echo "=== Compare against origin/main ==="
+          git fetch origin main --depth=1
+          CHANGED=$(git diff origin/main...HEAD --name-only)
+          echo "$CHANGED"
+          echo ""
+
+          echo "build_backend=false" >> $GITHUB_OUTPUT
+          echo "build_frontend=false" >> $GITHUB_OUTPUT
+          echo "build_any=false" >> $GITHUB_OUTPUT
+
+          for f in $CHANGED; do
+            case "$f" in
+              .github/workflows/cd.yml)
+                echo "🔴 workflow 变更，需要全量构建"
+                echo "build_backend=true" >> $GITHUB_OUTPUT
+                echo "build_frontend=true" >> $GITHUB_OUTPUT
+                echo "build_any=true" >> $GITHUB_OUTPUT
+                ;;
+              agent-insight-server/Dockerfile)
+                echo "🟢 后端 Dockerfile 变更"
+                echo "build_backend=true" >> $GITHUB_OUTPUT
+                echo "build_any=true" >> $GITHUB_OUTPUT
+                ;;
+              agent-insight-server/*)
+                echo "🟢 后端变更: $f"
+                echo "build_backend=true" >> $GITHUB_OUTPUT
+                echo "build_any=true" >> $GITHUB_OUTPUT
+                ;;
+              agent-insight-web/Dockerfile)
+                echo "🟡 前端 Dockerfile 变更"
+                echo "build_frontend=true" >> $GITHUB_OUTPUT
+                echo "build_any=true" >> $GITHUB_OUTPUT
+                ;;
+              agent-insight-web/*)
+                echo "🟡 前端变更: $f"
+                echo "build_frontend=true" >> $GITHUB_OUTPUT
+                echo "build_any=true" >> $GITHUB_OUTPUT
+                ;;
+              *)
+                echo "⚪ 无关变更: $f"
+                ;;
+            esac
+          done
+
+          echo ""
+          echo "=== 最终判断 ==="
+          echo "build_backend=${{ steps.changes.outputs.build_backend }}"
+          echo "build_frontend=${{ steps.changes.outputs.build_frontend }}"
+          echo "build_any=${{ steps.changes.outputs.build_any }}"
+
+  # ---------------------------------------------------------------------------
+  # 构建 Docker 镜像（仅在有代码变更时执行）
   # ---------------------------------------------------------------------------
   build:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.build_any == 'true'
     runs-on: ubuntu-latest
     environment: xcy
 
@@ -44,9 +125,8 @@ jobs:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.IMAGE_REGISTRY_TOKEN }}
 
-      # 构建后端镜像
       - name: Build and push backend image
-        if: github.event.inputs.service == 'all' || github.event.inputs.service == 'backend' || github.event.inputs.service == ''
+        if: needs.detect-changes.outputs.build_backend == 'true'
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -58,9 +138,8 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # 构建前端镜像
       - name: Build and push frontend image
-        if: github.event.inputs.service == 'all' || github.event.inputs.service == 'frontend' || github.event.inputs.service == ''
+        if: needs.detect-changes.outputs.build_frontend == 'true'
         uses: docker/build-push-action@v6
         with:
           context: ./agent-insight-web
@@ -73,10 +152,10 @@ jobs:
           cache-to: type=gha,mode=max
 
   # ---------------------------------------------------------------------------
-  # 部署到远程服务器（使用 Traefik 自动发现）
+  # 部署到远程服务器（始终执行，直接 pull latest 镜像）
   # ---------------------------------------------------------------------------
   deploy:
-    needs: build
+    needs: detect-changes
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     environment: xcy
@@ -107,9 +186,27 @@ jobs:
             hostname
 
             docker login ${{ env.IMAGE_REGISTRY }} -u "${{ github.actor }}" --password-stdin <<< "${{ secrets.IMAGE_REGISTRY_TOKEN }}"
-
+            echo "=== deploy path: ${{ secrets.DEPLOY_PATH }}"
             cd ${{ secrets.DEPLOY_PATH }}
-            docker compose -f ${{ secrets.DEPLOY_PATH }}/${{ env.COMPOSE_FILE }} pull ${{ env.IMAGE_PROJECT }}-backend ${{ env.IMAGE_PROJECT }}-frontend
-            docker compose -f ${{ secrets.DEPLOY_PATH }}/${{ env.COMPOSE_FILE }} up -d ${{ env.IMAGE_PROJECT }}-backend ${{ env.IMAGE_PROJECT }}-frontend
-            docker compose -f ${{ secrets.DEPLOY_PATH }}/${{ env.COMPOSE_FILE }} ps
 
+            # 根据变更范围决定 pull/restart 哪些服务
+            # build job 没运行时，latest 镜像不变，pull 也不会拉新层
+            if [[ "${{ needs.detect-changes.outputs.build_backend }}" == "true" ]]; then
+              echo "=== 后端有变更，pull 后端镜像 ==="
+              docker compose -f ${{ secrets.DEPLOY_PATH }}/${{ env.COMPOSE_FILE }} pull ${{ env.IMAGE_PROJECT }}-backend
+              docker compose -f ${{ secrets.DEPLOY_PATH }}/${{ env.COMPOSE_FILE }} up -d ${{ env.IMAGE_PROJECT }}-backend
+            fi
+
+            if [[ "${{ needs.detect-changes.outputs.build_frontend }}" == "true" ]]; then
+              echo "=== 前端有变更，pull 前端镜像 ==="
+              docker compose -f ${{ secrets.DEPLOY_PATH }}/${{ env.COMPOSE_FILE }} pull ${{ env.IMAGE_PROJECT }}-frontend
+              docker compose -f ${{ secrets.DEPLOY_PATH }}/${{ env.COMPOSE_FILE }} up -d ${{ env.IMAGE_PROJECT }}-frontend
+            fi
+
+            if [[ "${{ needs.detect-changes.outputs.build_any }}" == "false" ]]; then
+              echo "=== 无代码变更，仅 pull latest 镜像（保持最新）==="
+              docker compose -f ${{ secrets.DEPLOY_PATH }}/${{ env.COMPOSE_FILE }} pull ${{ env.IMAGE_PROJECT }}-backend ${{ env.IMAGE_PROJECT }}-frontend
+              docker compose -f ${{ secrets.DEPLOY_PATH }}/${{ env.COMPOSE_FILE }} up -d ${{ env.IMAGE_PROJECT }}-backend ${{ env.IMAGE_PROJECT }}-frontend
+            fi
+
+            docker compose -f ${{ secrets.DEPLOY_PATH }}/${{ env.COMPOSE_FILE }} ps
