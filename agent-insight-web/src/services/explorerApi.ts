@@ -175,21 +175,37 @@ export const explorerApi = {
   aiChat: (system: string, message: string) =>
     explorerHttp.post<any, { data: { code: number; data: string } }>('/explorer/ai/chat', { system, message }),
 
-  // ===== AI 模型供应商配置（agent-insight 业务表） =====
-  listAiModels: () =>
-    explorerHttp.get<any, { data: { code: number; data: any[] } }>('/explorer/ai-models'),
+  // ===== AI 模型供应商凭证（agent-insight 业务表） =====
+  listAiVendors: () =>
+    explorerHttp.get<any, { data: { code: number; data: any[] } }>('/explorer/ai-vendors'),
 
-  getAiModel: (id: number) =>
-    explorerHttp.get<any, { data: { code: number; data: any } }>(`/explorer/ai-models/${id}`),
+  getAiVendor: (id: number) =>
+    explorerHttp.get<any, { data: { code: number; data: any } }>(`/explorer/ai-vendors/${id}`),
 
-  createAiModel: (data: any) =>
-    explorerHttp.post<any, { data: { code: number; data: any } }>('/explorer/ai-models', data),
+  createAiVendor: (data: any) =>
+    explorerHttp.post<any, { data: { code: number; data: any } }>('/explorer/ai-vendors', data),
 
-  updateAiModel: (id: number, data: any) =>
-    explorerHttp.put<any, { data: { code: number; data: any } }>(`/explorer/ai-models/${id}`, data),
+  updateAiVendor: (id: number, data: any) =>
+    explorerHttp.put<any, { data: { code: number; data: any } }>(`/explorer/ai-vendors/${id}`, data),
 
-  deleteAiModel: (id: number) =>
-    explorerHttp.delete<any, { data: { code: number } }>(`/explorer/ai-models/${id}`),
+  deleteAiVendor: (id: number) =>
+    explorerHttp.delete<any, { data: { code: number } }>(`/explorer/ai-vendors/${id}`),
+
+  // ===== AI 模型实例 =====
+  listAiModelInstances: () =>
+    explorerHttp.get<any, { data: { code: number; data: any[] } }>('/explorer/ai-model-instances'),
+
+  getAiModelInstance: (id: number) =>
+    explorerHttp.get<any, { data: { code: number; data: any } }>(`/explorer/ai-model-instances/${id}`),
+
+  createAiModelInstance: (data: any) =>
+    explorerHttp.post<any, { data: { code: number; data: any } }>('/explorer/ai-model-instances', data),
+
+  updateAiModelInstance: (id: number, data: any) =>
+    explorerHttp.put<any, { data: { code: number; data: any } }>(`/explorer/ai-model-instances/${id}`, data),
+
+  deleteAiModelInstance: (id: number) =>
+    explorerHttp.delete<any, { data: { code: number } }>(`/explorer/ai-model-instances/${id}`),
 };
 
 export default explorerApi;

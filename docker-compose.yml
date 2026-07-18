@@ -45,6 +45,7 @@ services:
       - mysql_data:/var/lib/mysql
       # 初始化脚本（首次启动时执行）
       - ./docker/mysql/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+      - ./docker/mysql/init-meta.sql:/docker-entrypoint-initdb.d/02-init-meta.sql:ro
     command:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci

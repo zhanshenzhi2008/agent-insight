@@ -1,0 +1,29 @@
+spring:
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+      - org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.jpa.JpaRepositoriesAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.mongo.MongoDataAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.mongo.MongoReactiveDataAutoConfiguration
+      - org.springframework.boot.autoconfigure.mongo.MongoAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
+      - org.springframework.boot.autoconfigure.ai.openai.OpenAiChatAutoConfiguration
+      - org.springframework.boot.autoconfigure.ai.ollama.OllamaChatAutoConfiguration
+      - org.springframework.boot.autoconfigure.ai.deepseek.DeepSeekChatAutoConfiguration
+      - org.springframework.boot.autoconfigure.ai.anthropic.AnthropicChatAutoConfiguration
+      - org.springframework.boot.autoconfigure.ai.google.genai.GoogleGenAiChatAutoConfiguration
+
+agent-insight:
+  ai:
+    enabled: false
+  security:
+    encryption-key: dGVzdC1rZXktdGVzdC1rZXktdGVzdC1rZXktdGVzdC1rZX0=
+  log:
+    data-root: /tmp/agent-insight-test/log
+  script:
+    root: /tmp/agent-insight-test/scripts
+
+knife4j:
+  enable: false

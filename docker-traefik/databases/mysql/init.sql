@@ -45,3 +45,47 @@ CREATE TABLE IF NOT EXISTS `insight_column_config` (
   PRIMARY KEY (`id`),
   KEY `idx_table_config_id` (`table_config_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='列配置表';
+
+-- ---------------------------------------------------------------------------
+-- AI 模型供应商凭证表（agent-insight 自建业务表）
+-- 与 docker/mysql/init-meta.sql 保持一致
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `insight_ai_vendor` (
+    `id`                BIGINT PRIMARY KEY,
+    `vendor`            VARCHAR(64) NOT NULL,
+    `display_name`      VARCHAR(128),
+    `base_url`          VARCHAR(512),
+    `token_encrypted`   VARBINARY(2048),
+    `api_version`       VARCHAR(64),
+    `proxy_host`        VARCHAR(128),
+    `proxy_port`        INT,
+    `timeout_seconds`   INT NOT NULL DEFAULT 30,
+    `max_retries`       INT NOT NULL DEFAULT 3,
+    `extra_config`      TEXT,
+    `status`            TINYINT NOT NULL DEFAULT 1,
+    `description`       VARCHAR(512),
+    `create_time`       DATETIME(3) NOT NULL,
+    `update_time`       DATETIME(3) NOT NULL,
+    UNIQUE KEY `uk_vendor` (`vendor`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI 模型供应商凭证表';
+
+CREATE TABLE IF NOT EXISTS `insight_model_instance` (
+    `id`                BIGINT PRIMARY KEY,
+    `vendor_id`         BIGINT NOT NULL,
+    `model_name`        VARCHAR(128) NOT NULL,
+    `deployment_name`   VARCHAR(128),
+    `capability`        VARCHAR(32) NOT NULL,
+    `tier`              VARCHAR(32) NOT NULL,
+    `priority`          INT NOT NULL DEFAULT 1,
+    `max_tokens`        INT,
+    `temperature`       DECIMAL(3,2),
+    `top_p`             DECIMAL(3,2),
+    `is_active`         TINYINT NOT NULL DEFAULT 1,
+    `is_current`        TINYINT NOT NULL DEFAULT 0,
+    `description`       VARCHAR(512),
+    `create_time`       DATETIME(3) NOT NULL,
+    `update_time`       DATETIME(3) NOT NULL,
+    UNIQUE KEY `uk_vendor_model_cap` (`vendor_id`, `model_name`, `capability`),
+    INDEX `idx_cap_tier_active` (`capability`, `tier`, `is_active`),
+    INDEX `idx_cap_tier_current` (`capability`, `tier`, `is_current`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI 模型实例表';

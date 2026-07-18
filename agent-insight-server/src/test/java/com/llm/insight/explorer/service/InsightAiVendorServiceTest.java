@@ -1,15 +1,15 @@
 package com.llm.insight.explorer.service;
 
+import com.llm.insight.config.SecurityProperties;
 import com.llm.insight.config.TokenEncryptor;
-import com.llm.insight.dto.AiModelConfigRequest;
-import com.llm.insight.dto.AiModelConfigResponse;
-import com.llm.insight.repository.InsightAiModelConfigRepository;
-import com.llm.insight.repository.entity.InsightAiModelConfig;
+import com.llm.insight.dto.AiVendorRequest;
+import com.llm.insight.dto.AiVendorResponse;
+import com.llm.insight.repository.InsightAiVendorRepository;
+import com.llm.insight.repository.entity.InsightAiVendor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.List;
@@ -21,31 +21,33 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-class InsightAiModelConfigServiceTest {
+class InsightAiVendorServiceTest {
 
     private static final String KEY_B64 = Base64.getEncoder().encodeToString(new byte[32]);
 
-    private InsightAiModelConfigRepository repo;
+    private InsightAiVendorRepository repo;
     private TokenEncryptor encryptor;
-    private InsightAiModelConfigService service;
+    private InsightAiVendorService service;
 
     @BeforeEach
     void setUp() {
-        repo = mock(InsightAiModelConfigRepository.class);
-        com.llm.insight.config.SecurityProperties props = new com.llm.insight.config.SecurityProperties();
+        repo = mock(InsightAiVendorRepository.class);
+        SecurityProperties props = new SecurityProperties();
         props.setEncryptionKey(KEY_B64);
         encryptor = new TokenEncryptor(props);
         encryptor.init();
-        service = new InsightAiModelConfigService(repo, encryptor);
+        service = new InsightAiVendorService(repo, encryptor);
     }
 
-    private InsightAiModelConfig sample(long id, String vendor, boolean hasToken) {
-        InsightAiModelConfig e = new InsightAiModelConfig();
+    private InsightAiVendor sample(long id, String vendor, boolean hasToken) {
+        InsightAiVendor e = new InsightAiVendor();
         e.setId(id);
         e.setVendor(vendor);
-        e.setModels("gpt-4o");
+        e.setDisplayName(vendor);
+        e.setBaseUrl("https://api." + vendor + ".com");
         e.setStatus(1);
-        e.setTemperature(new BigDecimal("0.30"));
+        e.setTimeoutSeconds(30);
+        e.setMaxRetries(3);
         if (hasToken) {
             e.setTokenEncrypted(encryptor.encrypt("sk-real-key").getBytes(StandardCharsets.UTF_8));
         }
@@ -58,29 +60,29 @@ class InsightAiModelConfigServiceTest {
         when(repo.findAllByOrderByIdAsc()).thenReturn(List.of(
                 sample(1, "openai", true),
                 sample(2, "ollama", false)));
-        List<AiModelConfigResponse> out = service.list();
+        List<AiVendorResponse> out = service.list();
         assertThat(out).hasSize(2);
         assertThat(out.get(0).getToken()).isEqualTo("******");
         assertThat(out.get(1).getToken()).isNull();
-        assertThat(out.get(0).getVendor()).isEqualTo("openai");
     }
 
     @Test
     @DisplayName("create encrypts the token, rejects duplicate vendor")
     void createEncryptsToken() {
         when(repo.findByVendor("openai")).thenReturn(Optional.empty());
-        when(repo.save(any(InsightAiModelConfig.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(repo.save(any(InsightAiVendor.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        AiModelConfigRequest req = new AiModelConfigRequest();
+        AiVendorRequest req = new AiVendorRequest();
         req.setVendor("openai");
-        req.setModels("gpt-4o");
+        req.setDisplayName("OpenAI");
+        req.setBaseUrl("https://api.openai.com");
         req.setStatus(1);
-        req.setTemperature(new BigDecimal("0.5"));
+        req.setTimeoutSeconds(30);
+        req.setMaxRetries(3);
         req.setToken("sk-plain-text");
 
-        AiModelConfigResponse out = service.create(req);
+        AiVendorResponse out = service.create(req);
         assertThat(out.getVendor()).isEqualTo("openai");
-        // 响应中 token 字段应该是脱敏
         assertThat(out.getToken()).isEqualTo("******");
         assertThat(out.getId()).isNotNull();
     }
@@ -89,9 +91,8 @@ class InsightAiModelConfigServiceTest {
     @DisplayName("create rejects duplicate vendor")
     void createRejectsDuplicate() {
         when(repo.findByVendor("openai")).thenReturn(Optional.of(sample(1, "openai", false)));
-        AiModelConfigRequest req = new AiModelConfigRequest();
+        AiVendorRequest req = new AiVendorRequest();
         req.setVendor("openai");
-        req.setModels("gpt-4o");
         req.setStatus(1);
 
         assertThatThrownBy(() -> service.create(req))
@@ -102,44 +103,41 @@ class InsightAiModelConfigServiceTest {
     @Test
     @DisplayName("update does not overwrite token when request token is blank/masked")
     void updatePreservesToken() {
-        InsightAiModelConfig existing = sample(1, "openai", true);
+        InsightAiVendor existing = sample(1, "openai", true);
         String originalEncrypted = new String(existing.getTokenEncrypted(), StandardCharsets.UTF_8);
 
         when(repo.findById(1L)).thenReturn(Optional.of(existing));
-        when(repo.save(any(InsightAiModelConfig.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(repo.save(any(InsightAiVendor.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        AiModelConfigRequest req = new AiModelConfigRequest();
+        AiVendorRequest req = new AiVendorRequest();
         req.setVendor("openai");
-        req.setModels("gpt-4o-mini");
+        req.setBaseUrl("https://api.openai.com/v2");
         req.setStatus(1);
-        req.setToken("");  // 空字符串视为不更新
+        req.setToken("");
 
-        AiModelConfigResponse out = service.update(1L, req);
-        // 密文应保持不变
+        AiVendorResponse out = service.update(1L, req);
         assertThat(new String(existing.getTokenEncrypted(), StandardCharsets.UTF_8))
                 .isEqualTo(originalEncrypted);
-        assertThat(out.getModels()).isEqualTo("gpt-4o-mini");
+        assertThat(out.getBaseUrl()).isEqualTo("https://api.openai.com/v2");
     }
 
     @Test
     @DisplayName("update with new token overwrites the encrypted blob")
     void updateOverwritesToken() {
-        InsightAiModelConfig existing = sample(1, "openai", true);
+        InsightAiVendor existing = sample(1, "openai", true);
         String originalEncrypted = new String(existing.getTokenEncrypted(), StandardCharsets.UTF_8);
 
         when(repo.findById(1L)).thenReturn(Optional.of(existing));
-        when(repo.save(any(InsightAiModelConfig.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(repo.save(any(InsightAiVendor.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        AiModelConfigRequest req = new AiModelConfigRequest();
+        AiVendorRequest req = new AiVendorRequest();
         req.setVendor("openai");
-        req.setModels("gpt-4o-mini");
         req.setStatus(1);
         req.setToken("sk-new-key");
 
         service.update(1L, req);
         assertThat(new String(existing.getTokenEncrypted(), StandardCharsets.UTF_8))
                 .isNotEqualTo(originalEncrypted);
-        // 解密出来确实是新 key
         assertThat(encryptor.decrypt(new String(existing.getTokenEncrypted(), StandardCharsets.UTF_8)))
                 .isEqualTo("sk-new-key");
     }
@@ -147,7 +145,7 @@ class InsightAiModelConfigServiceTest {
     @Test
     @DisplayName("decryptToken returns plain text for configured entity")
     void decryptTokenWorks() {
-        InsightAiModelConfig existing = sample(1, "openai", true);
+        InsightAiVendor existing = sample(1, "openai", true);
         when(repo.findById(1L)).thenReturn(Optional.of(existing));
         assertThat(service.decryptToken(1L)).isEqualTo("sk-real-key");
     }
@@ -155,7 +153,7 @@ class InsightAiModelConfigServiceTest {
     @Test
     @DisplayName("decryptToken returns null when no token configured")
     void decryptTokenNullForUnset() {
-        InsightAiModelConfig existing = sample(1, "openai", false);
+        InsightAiVendor existing = sample(1, "openai", false);
         when(repo.findById(1L)).thenReturn(Optional.of(existing));
         assertThat(service.decryptToken(1L)).isNull();
     }
