@@ -109,7 +109,7 @@ jobs:
             docker login ${{ env.IMAGE_REGISTRY }} -u "${{ github.actor }}" --password-stdin <<< "${{ secrets.IMAGE_REGISTRY_TOKEN }}"
 
             cd ${{ secrets.DEPLOY_PATH }}
-            docker compose -f ${{ secrets.DEPLOY_PATH }}/${{ env.COMPOSE_FILE }} pull ${{ env.IMAGE_PROJECT }}-backend ${{ env.IMAGE_PROJECT }}-frontend
-            docker compose -f ${{ secrets.DEPLOY_PATH }}/${{ env.COMPOSE_FILE }} up -d ${{ env.IMAGE_PROJECT }}-backend ${{ env.IMAGE_PROJECT }}-frontend
-            docker compose -f ${{ secrets.DEPLOY_PATH }}/${{ env.COMPOSE_FILE }} ps
+            docker compose -f ${{ env.COMPOSE_FILE }} pull ${{ env.IMAGE_PROJECT }}-backend ${{ env.IMAGE_PROJECT }}-frontend
+            docker compose -f ${{ env.COMPOSE_FILE }} up -d ${{ env.IMAGE_PROJECT }}-backend ${{ env.IMAGE_PROJECT }}-frontend
+            docker compose -f ${{ env.COMPOSE_FILE }} ps
 

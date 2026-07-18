@@ -44,7 +44,7 @@ DATABASES_DIR="${PARENT_DIR}/databases"
 COMPOSE_FILE="${SCRIPT_DIR}/agent-insight/docker-compose.yml"
 ENV_DIR="${SCRIPT_DIR}/agent-insight/envs"
 DB_ENV_FILE="${ENV_DIR}/db.env"
-AI_ENV_FILE="${ENV_DIR}/ai.env"
+LLM_ENV_FILE="${ENV_DIR}/llm.env"
 # Traefik 配置文件目录（/opt/docker/traefik/）
 TRAEFIK_DIR="${BASE_DIR}/traefik"
 
@@ -71,7 +71,7 @@ check_env() {
     exit 1
   fi
 
-  # 检查凭据文件（db.env / ai.env）
+  # 检查凭据文件（db.env / llm.env）
   check_env_files
 
   # 检查 proxy 网络
@@ -109,7 +109,7 @@ check_databases() {
   fi
 }
 
-# 检查凭据文件（envs/db.env 与 envs/ai.env）
+# 检查凭据文件（envs/db.env 与 envs/llm.env）
 check_env_files() {
   local ok=0
 
@@ -123,10 +123,10 @@ check_env_files() {
     ok=1
   fi
 
-  # ai.env：缺文件则提示创建（但允许留空，因为 AI_ENABLED=false 时不需要）
-  if [ ! -f "${AI_ENV_FILE}" ]; then
-    log_warn "缺少凭据文件 ${AI_ENV_FILE}（AI_ENABLED=false 时可忽略）"
-    log_info "  创建方法: cp ${ENV_DIR}/ai.env.example ${AI_ENV_FILE}"
+  # llm.env：缺文件则提示创建（但允许留空，因为 AI_ENABLED=false 时不需要）
+  if [ ! -f "${LLM_ENV_FILE}" ]; then
+    log_warn "缺少凭据文件 ${LLM_ENV_FILE}（AI_ENABLED=false 时可忽略）"
+    log_info "  创建方法: cp ${ENV_DIR}/llm.env.example ${LLM_ENV_FILE}"
   fi
 
   if [ "${ok}" = "1" ]; then
@@ -156,7 +156,7 @@ do_init() {
 
   # 创建 envs/ 目录并自动复制凭据模板（首次部署友好）
   mkdir -p "${ENV_DIR}"
-  for f in db.env ai.env; do
+  for f in db.env llm.env; do
     if [ ! -f "${ENV_DIR}/${f}" ] && [ -f "${ENV_DIR}/${f}.example" ]; then
       cp "${ENV_DIR}/${f}.example" "${ENV_DIR}/${f}"
       log_ok "已创建 ${ENV_DIR}/${f}（请按需填写凭据）"
@@ -168,7 +168,7 @@ do_init() {
   echo "下一步："
   echo "  1. 编辑 ${COMPOSE_FILE} 填写 DOMAIN"
   echo "  2. 编辑 ${DB_ENV_FILE} 填写 MYSQL_PASSWORD（与 /opt/databases 保持一致）"
-  echo "     如需启用 AI，请编辑 ${AI_ENV_FILE}"
+  echo "     如需启用 AI，请编辑 ${LLM_ENV_FILE}"
   echo "  3. 运行 ./manage.sh databases start 启动数据库"
   echo "  4. 运行 ./manage.sh traefik start 启动 Traefik"
   echo "  5. 运行 ./manage.sh start 启动 Agent Insight"

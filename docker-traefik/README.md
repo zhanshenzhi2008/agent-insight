@@ -14,7 +14,7 @@ agent-insight/
 │   │   ├── docker-compose.yml    # 应用编排（backend + frontend）
 │   │   └── envs/                 # 环境变量模板
 │   │       ├── db.env.example    # 数据库连接配置
-│   │       └── ai.env.example    # AI Provider 配置
+│   │       └── llm.env.example   # LLM Provider 配置
 │   ├── databases/                # 数据库集合（MySQL / MongoDB / Redis）
 │   │   ├── docker-compose.yml
 │   │   ├── databases.env.example # 数据库服务自身配置
@@ -119,7 +119,7 @@ cd /opt/databases && cp databases.env.example .env && cd -
 # 应用配置
 mkdir -p /opt/app/agent-insight
 cp -r agent-insight/docker-traefik/agent-insight/* /opt/app/agent-insight/
-cd /opt/app/agent-insight && cp envs/db.env.example envs/db.env && cp envs/ai.env.example envs/ai.env && cd -
+cd /opt/app/agent-insight && cp envs/db.env.example envs/db.env && cp envs/llm.env.example envs/llm.env && cd -
 ```
 
 ### Step 3: 修改配置
@@ -172,7 +172,7 @@ cd /opt/app/agent-insight
 
 # 编辑 .env，配置域名和凭据
 vim envs/db.env
-vim envs/ai.env
+vim envs/llm.env
 
 # 编辑 DOMAIN（在 docker-compose.yml 中设置）
 vim docker-compose.yml  # 找到 DOMAIN: "" 填入域名

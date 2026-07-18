@@ -120,13 +120,13 @@ gh secret set DEPLOY_REGISTRY_TOKEN --body "你的GitHub_PAT" --env xcy
 # gh secret set REDIS_PORT --body "6379" --env xcy
 # gh secret set REDIS_PWD --body "你的Redis密码" --env xcy
 
-# AI 配置（CI/CD 暂不自动同步，由人工维护服务器上的 ../envs/ai.env）
+# AI 配置（CI/CD 暂不自动同步，由人工维护服务器上的 ../envs/llm.env）
 # gh secret set AI_ENABLED --body "false" --env xcy
 ```
 
 > ⚠️ **说明**：数据库和 AI 配置暂不通过 CI/CD 同步，改为**人工维护**。如需修改配置，请直接登录服务器编辑对应目录下的 env 文件：
 > - `/opt/project/envs/db.env` — 数据库连接
-> - `/opt/project/envs/ai.env` — AI 配置
+> - `/opt/project/envs/llm.env` — LLM 配置
 
 ---
 

@@ -23,7 +23,7 @@
 #   3. 创建 envs 文件并填写凭据：
 #        cd /opt/app/agent-insight
 #        cp envs/db.env.example envs/db.env && vi envs/db.env
-#        cp envs/ai.env.example envs/ai.env && vi envs/ai.env
+#        cp envs/llm.env.example envs/llm.env && vi envs/llm.env
 #   4. 编辑下方 DOMAIN 字段
 #   5. 最后启动应用（本文件）：
 #        docker compose up -d
@@ -61,8 +61,8 @@ services:
     env_file:
       # 数据库连接（需先 cp envs/db.env.example envs/db.env 并填写）
       - ../envs/db.env
-      # AI 凭据（需先 cp envs/ai.env.example envs/ai.env 并填写，AI_ENABLED=false 时可留空）
-      - ../envs/ai.env
+      # AI 凭据（需先 cp envs/llm.env.example envs/llm.env 并填写，AI_ENABLED=false 时可留空）
+      - ../envs/llm.env
     environment:
       JAVA_OPTS: "-Xms512m -Xmx1024m -XX:+UseG1GC"
 
