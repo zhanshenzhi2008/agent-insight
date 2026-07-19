@@ -9,6 +9,7 @@ import org.springframework.ai.google.genai.GoogleGenAiChatModel;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.context.annotation.Primary;
 
 /**
@@ -26,31 +27,30 @@ import org.springframework.context.annotation.Primary;
 @Configuration
 public class AiChatConfig {
 
-    @Bean("openAiChatClient")
-    public ChatClient openAiChatClient(OpenAiChatModel model) {
-        return ChatClient.create(model);
-    }
-
     @Bean("deepseekChatClient")
     @ConditionalOnProperty(name = "spring.ai.deepseek.api-key", matchIfMissing = false)
+    @Lazy
     public ChatClient deepseekChatClient(DeepSeekChatModel model) {
         return ChatClient.create(model);
     }
 
     @Bean("ollamaChatClient")
     @ConditionalOnProperty(name = "spring.ai.ollama.base-url", matchIfMissing = false)
+    @Lazy
     public ChatClient ollamaChatClient(OllamaChatModel model) {
         return ChatClient.create(model);
     }
 
     @Bean("anthropicChatClient")
     @ConditionalOnProperty(name = "spring.ai.anthropic.api-key", matchIfMissing = false)
+    @Lazy
     public ChatClient anthropicChatClient(AnthropicChatModel model) {
         return ChatClient.create(model);
     }
 
     @Bean("googleGenAiChatClient")
     @ConditionalOnProperty(name = "spring.ai.google.genai.api-key", matchIfMissing = false)
+    @Lazy
     public ChatClient googleGenAiChatClient(GoogleGenAiChatModel model) {
         return ChatClient.create(model);
     }
@@ -58,7 +58,14 @@ public class AiChatConfig {
     /** 默认 ChatClient（OpenAI） */
     @Primary
     @Bean("defaultChatClient")
+    @Lazy
     public ChatClient defaultChatClient(OpenAiChatModel model) {
+        return ChatClient.create(model);
+    }
+
+    @Bean("openAiChatClient")
+    @Lazy
+    public ChatClient openAiChatClient(OpenAiChatModel model) {
         return ChatClient.create(model);
     }
 }

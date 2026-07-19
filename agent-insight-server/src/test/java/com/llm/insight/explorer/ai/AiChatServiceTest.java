@@ -8,6 +8,7 @@ import org.springframework.ai.chat.client.ChatClient;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -55,7 +56,8 @@ class AiChatServiceTest {
     }
 
     private AiChatService service() {
-        return new AiChatService(props, routeService, chatModelFactory, cache, defaultClient);
+        return new AiChatService(props, routeService, chatModelFactory, cache,
+                Optional.ofNullable(defaultClient));
     }
 
     // -------------------------------------------------------------------------
@@ -91,6 +93,22 @@ class AiChatServiceTest {
         verify(routeService).resolve("CHAT", "PRODUCTION");
         verify(chatModelFactory, never()).create(any());
         // Default client was invoked (stubbing optional since it's a real fallback)
+    }
+
+    @Test
+    @DisplayName("无 defaultChatClient 时返回友好提示 — 不依赖 OpenAI 自动配置")
+    void noDefaultChatClientShortCircuits() {
+        props.setEnabled(true);
+        // 重新构造 service 用 Optional.empty() 模拟 defaultChatClient 缺失
+        AiChatService svcWithNoDefault = new AiChatService(
+                props, routeService, chatModelFactory, cache, java.util.Optional.empty());
+        when(routeService.resolve("CHAT", "PRODUCTION")).thenReturn(java.util.Optional.empty());
+
+        String r = svcWithNoDefault.chat("system", "hello");
+
+        // 没有 defaultChatClient + 无路由 → 应返回"AI 未启用"提示
+        assertThat(r).contains("AI 功能未启用");
+        verify(chatModelFactory, never()).create(any());
     }
 
     @Test

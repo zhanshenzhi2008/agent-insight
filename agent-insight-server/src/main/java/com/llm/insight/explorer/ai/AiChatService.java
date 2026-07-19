@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -20,7 +21,7 @@ import java.util.stream.Collectors;
  *   <li>数据库路由：{@link AiModelRouteService} 按 (capability=CHAT, tier=PRODUCTION)
  *       查到 vendor + instance → {@link DynamicChatModelFactory} 动态构建 ChatModel</li>
  *   <li>降级 fallback：从 application.yml 读 {@code agent-insight.ai.provider/model}，
- *       用预定义的 OpenAiChatModel bean</li>
+ *       用预定义的 defaultChatClient bean</li>
  * </ol>
  *
  * <p>缓存：同一 vendor 的 ChatClient 缓存在 {@link DynamicChatClientCache} 中，
@@ -34,7 +35,13 @@ public class AiChatService {
     private final AiModelRouteService routeService;
     private final DynamicChatModelFactory chatModelFactory;
     private final DynamicChatClientCache cache;
-    /** Fallback：来自 application.yml 的默认 OpenAiChatModel（AiChatConfig 创建） */
+    /**
+     * Fallback：来自 application.yml 的默认 ChatClient（AiChatConfig 创建）。
+     * <p>
+     * 注意：用 {@link Optional} 包裹，避免在 OpenAI ChatModel 自动配置创建失败时
+     * 把整个 AiChatService 拖崩。{@code @Lazy} 让构造函数不强制 bean 初始化，
+     * 调用时如果 bean 不存在或创建失败，返回 {@link Optional#empty()}。
+     */
     private final ChatClient defaultChatClient;
 
     @Autowired
@@ -43,23 +50,28 @@ public class AiChatService {
             AiModelRouteService routeService,
             DynamicChatModelFactory chatModelFactory,
             DynamicChatClientCache chatClientCache,
-            @Qualifier("defaultChatClient") ChatClient defaultChatClient) {
+            @Qualifier("defaultChatClient")
+            @Lazy
+            Optional<ChatClient> defaultChatClient) {
         this.aiProps = aiProps;
         this.routeService = routeService;
         this.chatModelFactory = chatModelFactory;
         this.cache = chatClientCache;
-        this.defaultChatClient = defaultChatClient;
+        this.defaultChatClient = defaultChatClient.orElse(null);
     }
 
     /**
      * 获取当前激活的 ChatClient。
      * 优先从数据库路由，降级到 application.yml 配置的默认 OpenAI。
+     *
+     * @return 激活的 ChatClient；如果 AI 未启用、路由失败、且没有 defaultChatClient 则返回 null
      */
     private ChatClient getClient() {
         if (!aiProps.isEnabled()) {
             return null;
         }
 
+        // 数据库路由优先
         try {
             Optional<AiModelRouteService.RouteResult> routeOpt =
                     routeService.resolve("CHAT", "PRODUCTION");
@@ -68,13 +80,11 @@ public class AiChatService {
                 var route = routeOpt.get();
                 Long vendorId = route.vendor().getId();
 
-                // 尝试从缓存取
                 ChatClient cached = cache.get(vendorId);
                 if (cached != null) {
                     return cached;
                 }
 
-                // 动态构建
                 var chatModel = chatModelFactory.create(route.vendor());
                 ChatClient client = ChatClient.create(chatModel);
                 cache.put(vendorId, client);
@@ -87,7 +97,13 @@ public class AiChatService {
             log.warn("数据库路由失败，降级到默认配置: {}", e.getMessage());
         }
 
-        // 降级：使用 application.yml 配置的默认 OpenAI
+        // 降级：如果 defaultChatClient bean 不存在（如 OpenAI ChatModel 构造失败），
+        // 返回 null，让上层方法返回友好提示
+        if (defaultChatClient == null) {
+            log.warn("无可用数据库配置，且 defaultChatClient 未就绪（OpenAI 自动配置缺失？）");
+            return null;
+        }
+
         log.info("无可用数据库配置，使用默认 OpenAI (provider={} model={})",
                 aiProps.getProvider(), aiProps.getDefaultModel());
         return defaultChatClient;
