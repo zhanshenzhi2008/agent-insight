@@ -13,60 +13,91 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
- * Spring AI 2.0 多 Provider ChatClient 封装。
+ * Spring AI 2.0 多 Provider ChatClient 封装（改造版）。
  *
- * 支持 OpenAI / Ollama / DeepSeek / Anthropic，根据 AI_PROVIDER 配置动态选择。
- * 使用命名的 ChatClient Bean：openAiChatClient / deepseekChatClient / ollamaChatClient / anthropicChatClient。
+ * <p>路由策略（优先级从高到低）：
+ * <ol>
+ *   <li>数据库路由：{@link AiModelRouteService} 按 (capability=CHAT, tier=PRODUCTION)
+ *       查到 vendor + instance → {@link DynamicChatModelFactory} 动态构建 ChatModel</li>
+ *   <li>降级 fallback：从 application.yml 读 {@code agent-insight.ai.provider/model}，
+ *       用预定义的 OpenAiChatModel bean</li>
+ * </ol>
+ *
+ * <p>缓存：同一 vendor 的 ChatClient 缓存在 {@link DynamicChatClientCache} 中，
+ * 页面改了配置后可通过 {@code invalidate(vendorId)} 驱逐。
  */
 @Slf4j
 @Service
 public class AiChatService {
 
     private final AiProperties aiProps;
-    private final ChatClient openAiChatClient;
-    private final Optional<ChatClient> deepseekChatClient;
-    private final Optional<ChatClient> ollamaChatClient;
-    private final Optional<ChatClient> anthropicChatClient;
-    private final Optional<ChatClient> googleGenAiChatClient;
+    private final AiModelRouteService routeService;
+    private final DynamicChatModelFactory chatModelFactory;
+    private final DynamicChatClientCache cache;
+    /** Fallback：来自 application.yml 的默认 OpenAiChatModel（AiChatConfig 创建） */
+    private final ChatClient defaultChatClient;
 
     @Autowired
-    public AiChatService(AiProperties aiProps,
-                         @Qualifier("openAiChatClient") ChatClient openAiChatClient,
-                         @Qualifier("deepseekChatClient") Optional<ChatClient> deepseekChatClient,
-                         @Qualifier("ollamaChatClient") Optional<ChatClient> ollamaChatClient,
-                         @Qualifier("anthropicChatClient") Optional<ChatClient> anthropicChatClient,
-                         @Qualifier("googleGenAiChatClient") Optional<ChatClient> googleGenAiChatClient) {
+    public AiChatService(
+            AiProperties aiProps,
+            AiModelRouteService routeService,
+            DynamicChatModelFactory chatModelFactory,
+            DynamicChatClientCache chatClientCache,
+            @Qualifier("defaultChatClient") ChatClient defaultChatClient) {
         this.aiProps = aiProps;
-        this.openAiChatClient = openAiChatClient;
-        this.deepseekChatClient = deepseekChatClient;
-        this.ollamaChatClient = ollamaChatClient;
-        this.anthropicChatClient = anthropicChatClient;
-        this.googleGenAiChatClient = googleGenAiChatClient;
-    }
-
-    private ChatClient getClient() {
-        return switch (aiProps.getProvider().toLowerCase()) {
-            case "deepseek" -> deepseekChatClient.orElse(openAiChatClient);
-            case "ollama" -> ollamaChatClient.orElse(openAiChatClient);
-            case "anthropic" -> anthropicChatClient.orElse(openAiChatClient);
-            case "google", "google-genai", "gemini" -> googleGenAiChatClient.orElse(openAiChatClient);
-            case "openai" -> openAiChatClient;
-            default -> openAiChatClient;
-        };
+        this.routeService = routeService;
+        this.chatModelFactory = chatModelFactory;
+        this.cache = chatClientCache;
+        this.defaultChatClient = defaultChatClient;
     }
 
     /**
-     * 通用对话调用。
-     *
-     * 用法示例（官方文档）：
-     *   ChatClient chatClient = ChatClient.create(chatModel);
-     *   String result = chatClient.prompt()
-     *       .user("Which number is larger: 9.11 or 9.8?")
-     *       .call()
-     *       .content();
+     * 获取当前激活的 ChatClient。
+     * 优先从数据库路由，降级到 application.yml 配置的默认 OpenAI。
      */
-    public String chat(String systemPrompt, String userMessage) {
+    private ChatClient getClient() {
         if (!aiProps.isEnabled()) {
+            return null;
+        }
+
+        try {
+            Optional<AiModelRouteService.RouteResult> routeOpt =
+                    routeService.resolve("CHAT", "PRODUCTION");
+
+            if (routeOpt.isPresent()) {
+                var route = routeOpt.get();
+                Long vendorId = route.vendor().getId();
+
+                // 尝试从缓存取
+                ChatClient cached = cache.get(vendorId);
+                if (cached != null) {
+                    return cached;
+                }
+
+                // 动态构建
+                var chatModel = chatModelFactory.create(route.vendor());
+                ChatClient client = ChatClient.create(chatModel);
+                cache.put(vendorId, client);
+
+                log.info("ChatClient 已构建: vendor={} model={}",
+                        route.vendor().getVendor(), route.instance().getModelName());
+                return client;
+            }
+        } catch (Exception e) {
+            log.warn("数据库路由失败，降级到默认配置: {}", e.getMessage());
+        }
+
+        // 降级：使用 application.yml 配置的默认 OpenAI
+        log.info("无可用数据库配置，使用默认 OpenAI (provider={} model={})",
+                aiProps.getProvider(), aiProps.getDefaultModel());
+        return defaultChatClient;
+    }
+
+    // ===== 公开 API =====
+
+    public String chat(String systemPrompt, String userMessage) {
+        ChatClient client = getClient();
+        if (client == null) {
             return "# AI 功能未启用\n请在配置中设置 `agent-insight.ai.enabled: true`";
         }
 
@@ -74,8 +105,7 @@ public class AiChatService {
             String combined = (systemPrompt != null && !systemPrompt.isBlank()
                     ? systemPrompt + "\n\n" : "") + userMessage;
 
-            // Spring AI 2.0.0 官方 API: ChatClient.create(chatModel).prompt().user().call().content()
-            String response = getClient().prompt()
+            String response = client.prompt()
                     .user(combined)
                     .call()
                     .content();
@@ -87,11 +117,13 @@ public class AiChatService {
         }
     }
 
-    /**
-     * 带结构化输出的对话（期望返回 JSON）。
-     */
     public <T> T chatForJson(String systemPrompt, String userMessage, Class<T> clazz) {
         if (!aiProps.isEnabled()) {
+            return null;
+        }
+
+        ChatClient client = getClient();
+        if (client == null) {
             return null;
         }
 
@@ -101,7 +133,7 @@ public class AiChatService {
                     + userMessage
                     + "\n\n请仅返回有效的 JSON，不要包含 markdown 代码块包裹。";
 
-            String json = getClient().prompt()
+            String json = client.prompt()
                     .user(jsonPrompt)
                     .call()
                     .content();
@@ -128,15 +160,6 @@ public class AiChatService {
 
     // ===== 业务 AI 方法 =====
 
-    /**
-     * AI 增强列分析：基于列名语义 + 样本值推断配置。
-     *
-     * LLM 根据列名的业务语义（而非仅凭数据类型）推荐：
-     * - 最佳渲染类型（TAG / MONEY / DATETIME / LINK 等）
-     * - 中文展示名
-     * - 时间字段标记
-     * - 格式规则
-     */
     public AiColumnAnalysis analyzeColumnWithAi(String columnName, String displayName,
                                                String dataType, String renderType,
                                                List<String> sampleValues,
@@ -176,8 +199,8 @@ public class AiChatService {
                   "recommendedDataType": "STRING|NUMBER|DATETIME|BOOLEAN|JSON|TEXT|ENUM",
                   "reason": "判断理由",
                   "suggestedDisplayName": "建议的中文展示名",
-                  "suggestedDateFormat": "如为日期字段填 \"yyyy-MM-dd HH:mm:ss\"",
-                  "suggestedNumberFormat": "如为数字字段填 \"#,##0.00\"",
+                  "suggestedDateFormat": "如为日期字段填 \\"yyyy-MM-dd HH:mm:ss\\"",
+                  "suggestedNumberFormat": "如为数字字段填 \\"#,##0.00\\"",
                   "valueLabels": {"值1": "标签1", "值2": "标签2"},
                   "tagColors": {"值1": "green", "值2": "red"},
                   "isTimeField": true或false,
@@ -194,10 +217,6 @@ public class AiChatService {
         return result;
     }
 
-    /**
-     * 自然语言转查询条件。
-     * 用户说"找出所有今天创建的订单"，AI 翻译成结构化 FilterCondition。
-     */
     public NlQueryResult translateToFilters(String naturalLanguage,
                                            List<AnalyzedColumn> availableColumns) {
         if (!aiProps.isNlQueryEnabled()) {
@@ -233,10 +252,6 @@ public class AiChatService {
         return chatForJson("", userMessage, NlQueryResult.class);
     }
 
-    /**
-     * 查询结果 AI 摘要。
-     * 取前 50 条样本数据，LLM 自动解读数据规律和关键发现。
-     */
     public String summarizeResults(List<Map<String, Object>> rows,
                                  List<AnalyzedColumn> columns,
                                  String tableName,

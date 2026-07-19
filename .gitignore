@@ -19,10 +19,49 @@
 *.tar.gz
 *.rar
 
+# -----------------------------------------------------------------------------
+# 敏感凭据 — 绝不能提交 (AGENTS.md §6.4)
+# -----------------------------------------------------------------------------
+# 历史教训：2026-07-19 .env 文件曾被误提交到 origin/main
+# 现在用 broad pattern 覆盖所有变体，避免任何漏网之鱼
+
+# .env 及其变体
+.env
+.env.*
+**/.env
+**/.env.*
+
+# envs/ 目录下的 .env
+**/envs/*.env
+**/envs/*.env.local
+
+# 但 *.env.example 模板必须允许入仓（提供部署参考）
+!**/envs/*.env.example
+
+# databases/.env 同理
+**/databases/.env
+**/databases/.env.local
+!**/databases/.env.example
+
+# Spring Boot 本地 profile（通常含真密码）
+**/application-local.yml
+**/application-local.yaml
+**/application-local.properties
+
+# 密钥 / 证书
+**/secrets/
+**/*.pem
+**/*.key
+**/*.p12
+**/*.pfx
+
+# Docker 本地覆盖配置
+**/docker-compose.override.yml
+**/docker-compose.local.yml
+
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*
 replay_pid*
-.env
 
 # Maven build output
 target/
