@@ -33,12 +33,6 @@ services:
     image: mysql:8.4
     container_name: agent-insight-mysql
     restart: unless-stopped
-    environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_PASSWORD:-root830i}
-      MYSQL_DATABASE: ${MYSQL_DB:-agent_insight}
-      MYSQL_USER: ${MYSQL_USERNAME:-root}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-root830i}
-      TZ: Asia/Shanghai
     ports:
       - "${MYSQL_PORT:-3306}:3306"
     volumes:
