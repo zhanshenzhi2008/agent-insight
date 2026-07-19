@@ -33,6 +33,11 @@ services:
     image: mysql:8.4
     container_name: agent-insight-mysql
     restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DB}
+      MYSQL_USER: ${MYSQL_USERNAME}
+      MYSQL_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      TZ: Asia/Shanghai
     ports:
       - "${MYSQL_PORT:-3306}:3306"
     volumes:
@@ -103,7 +108,7 @@ services:
   # 后端服务（Spring Boot 4.1，端口 9280）
   # ---------------------------------------------------------------------------
   agent-insight-backend:
-    #image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-liujun}/agent-insight-backend:latest
+    #image: ghcr.io/${GITHUB_REPOSITORY_OWNER}/agent-insight-backend:latest
     build:
       context: ./agent-insight-server
       dockerfile: Dockerfile
@@ -160,7 +165,7 @@ services:
   # 前端服务（React + Vite，端口 80）
   # ---------------------------------------------------------------------------
   agent-insight-frontend:
-    #image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-liujun}/agent-insight-frontend:latest
+    #image: ghcr.io/${GITHUB_REPOSITORY_OWNER}/agent-insight-frontend:latest
     build:
       context: ./agent-insight-web
       dockerfile: Dockerfile
