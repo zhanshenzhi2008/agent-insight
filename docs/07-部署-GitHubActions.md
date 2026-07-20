@@ -4,6 +4,7 @@
 |------|------|------|------|
 | v1.0 | 2026-07-11 | - | 初始版本，GitHub Actions 配置说明 |
 | v1.1 | 2026-07-20 | - | 修正：DEPLOY_REGISTRY / DEPLOY_REGISTRY_TOKEN → IMAGE_REGISTRY_TOKEN（workflow 实际变量名）；修正 §3.3/§4 引导到 Repository Secrets → Environment `xcy` Secrets（CD workflow 有 `environment: xcy`） |
+| v1.2 | 2026-07-21 | - | 新增 §2.3 GitHub Actions 内置变量说明（`github.repository_owner` 等无需配置）；§2.4/§2.5 顺延到 §2.5/§2.6 |
 
 ---
 
@@ -75,7 +76,24 @@ gh api -X PUT repos/<owner>/agent-insight/environments/xcy
 > - `IMAGE_REGISTRY`（`ghcr.io`）写在 `cd.yml` 的 `env` 段（line 21），**不是 secret**，不需要设置
 > - 不要设 `DEPLOY_REGISTRY_TOKEN` 或 `DEPLOY_REGISTRY`，workflow 不读这两个名字（旧版文档误写）
 
-### 2.3 数据库连接
+### 2.3 GitHub Actions 内置变量（无需配置）
+
+CD workflow 用到的 `${{ github.xxx }}` 全部是 **GitHub Actions 内置 context**，**每个仓库自动可用，不需要在 Secrets / Variables 里设置**：
+
+| 变量 | 当前 workflow 用法 | 取值示例（仓库 `liujun/agent-insight`） |
+|------|-------------------|-------------------------------------|
+| `github.repository_owner` | 镜像 namespace（cd.yml line 22, 125） | `liujun` |
+| `github.actor` | 触发 workflow 的用户（cd.yml line 188 手动触发时记录） | `liujun` |
+| `github.event_name` | 触发事件名（cd.yml line 45） | `push` / `pull_request` / `workflow_dispatch` |
+| `github.ref` | 触发 ref（cd.yml line 160） | `refs/heads/main` / `refs/tags/v1.0.0` |
+| `github.sha` | 触发 commit SHA（cd.yml line 136, 149） | `a1b2c3d4e5f6...` |
+| `github.token` / `secrets.GITHUB_TOKEN` | 临时 token，可推 PR / 写 issue 等 | （自动签发） |
+
+> 💡 **使用规则**：
+> - **永远不要**把这些内置变量存到 Repository Secrets / Environment Secrets——不仅冗余，还会因为值变化（push 时 `sha` 每次都不同）导致 secret 失效
+> - 完整列表见 [GitHub 官方文档：contexts](https://docs.github.com/en/actions/learn-github-actions/contexts#github-context)
+
+### 2.4 数据库连接
 
 | Secret 名称 | 说明 | 示例 |
 |------------|------|------|
@@ -89,7 +107,7 @@ gh api -X PUT repos/<owner>/agent-insight/environments/xcy
 | `REDIS_PORT` | Redis 端口 | `6379` |
 | `REDIS_PWD` | Redis 密码（无密码留空） | `your_redis_password` |
 
-### 2.4 AI 配置（可选）
+### 2.5 AI 配置（可选）
 
 | Secret 名称 | 说明 | 示例 |
 |------------|------|------|
@@ -100,7 +118,7 @@ gh api -X PUT repos/<owner>/agent-insight/environments/xcy
 | `OPENAI_MODEL` | OpenAI 模型名 | `gpt-4o` |
 | `DEEPSEEK_API_KEY` | DeepSeek API Key | `sk-xxx` |
 
-### 2.5 使用 GitHub CLI 批量配置
+### 2.6 使用 GitHub CLI 批量配置
 
 安装 `gh` 后，进入项目目录执行以下命令（**需要修改实际值**）：
 
