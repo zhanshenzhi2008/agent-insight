@@ -3,6 +3,7 @@
 | 版本 | 日期 | 作者 | 备注 |
 |------|------|------|------|
 | v1.0 | 2026-07-11 | - | 初始版本，GitHub Actions 配置说明 |
+| v1.1 | 2026-07-20 | - | 修正：DEPLOY_REGISTRY / DEPLOY_REGISTRY_TOKEN → IMAGE_REGISTRY_TOKEN（workflow 实际变量名）；修正 §3.3/§4 引导到 Repository Secrets → Environment `xcy` Secrets（CD workflow 有 `environment: xcy`） |
 
 ---
 
@@ -34,7 +35,10 @@
 
 ## 2. 配置 GitHub Secrets
 
-> 💡 **提示**：推荐使用 GitHub CLI 批量配置，比网页操作更高效。
+> ⚠️ **重要**：本项目 CD workflow（`.github/workflows/cd.yml`）的 build 和 deploy job 都声明了 `environment: xcy`，所有 Secrets **必须挂在 environment `xcy` 下**，不能只挂在 Repository Secrets。
+>
+> - **CI workflow**（`ci.yml`）不使用任何 secrets（数据库密码通过 `services.env` 在临时容器内本地注入）
+> - **CD workflow** 读 secret 的顺序：`environment xcy` → （可选 fallback）→ repository
 
 ### 2.0 安装 GitHub CLI
 
@@ -44,7 +48,12 @@ brew install gh
 
 # 登录 GitHub
 gh auth login
+
+# 先创建 environment（如果还没创建）
+gh api -X PUT repos/<owner>/agent-insight/environments/xcy
 ```
+
+> 💡 **提示**：推荐使用 GitHub CLI 批量配置（每个命令都带 `--env xcy`），比网页操作更高效。
 
 ### 2.1 服务器连接
 
@@ -60,8 +69,11 @@ gh auth login
 
 | Secret 名称 | 说明 | 示例 |
 |------------|------|------|
-| `DEPLOY_REGISTRY` | 镜像仓库地址（默认 `ghcr.io`） | `ghcr.io` |
-| `DEPLOY_REGISTRY_TOKEN` | GitHub Personal Access Token | `ghp_xxxxxxxxxxxx` |
+| `IMAGE_REGISTRY_TOKEN` | GitHub Personal Access Token（需 `write:packages` + `read:packages` 权限） | `ghp_xxxxxxxxxxxx` |
+
+> 📝 **注意**：
+> - `IMAGE_REGISTRY`（`ghcr.io`）写在 `cd.yml` 的 `env` 段（line 21），**不是 secret**，不需要设置
+> - 不要设 `DEPLOY_REGISTRY_TOKEN` 或 `DEPLOY_REGISTRY`，workflow 不读这两个名字（旧版文档误写）
 
 ### 2.3 数据库连接
 
@@ -106,8 +118,9 @@ gh secret set DEPLOY_SSH_PORT --body "22" --env xcy
 gh secret set DEPLOY_PATH --body "/opt/docker/agent-insight" --env xcy
 
 # 镜像仓库
-gh secret set DEPLOY_REGISTRY --body "ghcr.io" --env xcy
-gh secret set DEPLOY_REGISTRY_TOKEN --body "你的GitHub_PAT" --env xcy
+# IMAGE_REGISTRY 写在 cd.yml 的 env 段（默认 ghcr.io），不是 secret，不需要 gh secret set
+# 实际登录用的是 IMAGE_REGISTRY_TOKEN（GitHub PAT，权限：read:packages / write:packages）
+gh secret set IMAGE_REGISTRY_TOKEN --body "你的GitHub_PAT" --env xcy
 
 # 数据库连接（CI/CD 暂不自动同步，由人工维护服务器上的 ../envs/db.env）
 # gh secret set MYSQL_HOST --body "你的MySQL主机" --env xcy
@@ -158,14 +171,18 @@ ssh deploy@你的服务器IP "mkdir -p ~/.ssh && echo 'YOUR_PUBLIC_KEY' >> ~/.ss
  ssh-copy-id -i ~/.ssh/github_actions.pub  -p 你的服务器PORT deploy@你的服务器IP
 ```
 
-### 3.3 将私钥添加到 GitHub Secrets
+### 3.3 将私钥添加到 GitHub Secrets（**Environment `xcy` 下**）
 
 1. 复制上一步 `cat ~/.ssh/github_actions` 的完整输出
-2. 打开 GitHub 仓库 → **Settings → Secrets and variables → Actions**
-3. 点击 **New repository secret**
-4. Name: `DEPLOY_SSH_KEY`
-5. Secret: 粘贴私钥的完整内容（包含 `-----BEGIN OPENSSH PRIVATE KEY-----` 和 `-----END OPENSSH PRIVATE KEY-----`）
-6. 点击 **Add secret**
+2. 打开 GitHub 仓库 → **Settings → Environments → `xcy`**
+   - 如果 environment `xcy` 还没创建，先点 **"New environment"**，Name 填 `xcy`，创建后再进入
+3. 左侧菜单 **"Environment secrets"** → 点击 **"Add secret"**
+4. 填写：
+   - **Name**: `DEPLOY_SSH_KEY`
+   - **Secret**: 粘贴私钥的完整内容（包含 `-----BEGIN OPENSSH PRIVATE KEY-----` 和 `-----END OPENSSH PRIVATE KEY-----`）
+5. 点击 **Add secret**
+
+> ⚠️ **必须挂在 `xcy` environment 下**，不能挂在 Repository Secrets 下——CD workflow 的 deploy job 声明了 `environment: xcy`，只读该 environment 的 secrets。
 
 ---
 
@@ -178,13 +195,19 @@ ssh deploy@你的服务器IP "mkdir -p ~/.ssh && echo 'YOUR_PUBLIC_KEY' >> ~/.ss
 5. 设置：
    - **Name**: `ghcr-push`（任意名称）
    - **Expiration**: 建议 30 天或 90 天
-   - **Scopes**: 勾选 `read:packages`（用于读取镜像）
+   - **Scopes**: 必须勾选
+     - ✅ `write:packages`（推镜像到 ghcr.io，**必须**）
+     - ✅ `read:packages`（拉镜像，**必须**）
 6. 点击 **Generate token**
 7. **立即复制**，关闭页面后无法再查看
 
-将生成的 Token 填入 GitHub Secrets：
-- Name: `DEPLOY_REGISTRY_TOKEN`
+将生成的 Token 填入 GitHub Secrets（**Environment `xcy` 下**）：
+- 路径：**Settings → Environments → `xcy` → Environment secrets → Add secret**
+- Name: `IMAGE_REGISTRY_TOKEN`（与 `.github/workflows/cd.yml` 中的 `secrets.IMAGE_REGISTRY_TOKEN` 对应）
 - Secret: 粘贴 Token
+
+> ⚠️ **不要设** `DEPLOY_REGISTRY_TOKEN` 或 `DEPLOY_REGISTRY`，这是文档旧版误写，workflow 不读这两个名字。
+> ⚠️ **必须挂在 environment `xcy` 下**，不要挂在 Repository Secrets 下。
 
 ---
 
