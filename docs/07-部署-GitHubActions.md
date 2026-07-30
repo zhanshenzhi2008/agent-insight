@@ -5,6 +5,7 @@
 | v1.0 | 2026-07-11 | - | 初始版本，GitHub Actions 配置说明 |
 | v1.1 | 2026-07-20 | - | 修正：DEPLOY_REGISTRY / DEPLOY_REGISTRY_TOKEN → IMAGE_REGISTRY_TOKEN（workflow 实际变量名）；修正 §3.3/§4 引导到 Repository Secrets → Environment `xcy` Secrets（CD workflow 有 `environment: xcy`） |
 | v1.2 | 2026-07-21 | - | 新增 §2.3 GitHub Actions 内置变量说明（`github.repository_owner` 等无需配置）；§2.4/§2.5 顺延到 §2.5/§2.6 |
+| v1.3 | 2026-07-21 | - | 新增 §1.3 关键环境变量分类表 + DOMAIN 说明（DOMAIN 是服务器 docker-compose.yml 变量，不是 GitHub Secret）；部署流程图加 Traefik/DOMAIN 路由；修 §7.2 把 `DEPLOY_REGISTRY_TOKEN` 改回 `IMAGE_REGISTRY_TOKEN`；新增 §7.4 DOMAIN 未填错误排查 |
 
 ---
 
@@ -26,11 +27,46 @@
   ┌────────────┐
   │ Deploy Job │ → SSH 连接服务器，拉取镜像，重启容器
   └────────────┘
+       ↓
+  Traefik(服务器) → 根据 docker-compose.yml 的 DOMAIN 路由到容器
+       ↓
+  https://insight.yourdomain.com/  ← 用户访问
 ```
 
 ### 1.2 相关文档
 
 > 服务器 Docker 环境配置请参考：[docker-traefik/README.md](../docker-traefik/README.md)
+
+### 1.3 关键环境变量分类（先看这张表再动手）
+
+| 变量 | 类型 | 在哪配置 | 谁来读 | 备注 |
+|------|------|---------|--------|------|
+| `IMAGE_REGISTRY_TOKEN` | GitHub Secret | Environment `xcy` → Secrets | cd.yml build job | 镜像仓库登录凭据 |
+| `DEPLOY_SSH_KEY` / `DEPLOY_HOST` 等 | GitHub Secret | Environment `xcy` → Secrets | cd.yml deploy job | SSH 部署凭据 |
+| `github.repository_owner` / `github.sha` 等 | **GitHub 内置变量** | 自动生成，无需配置 | cd.yml 任意位置 | 详见 §2.3 |
+| `IMAGE_REGISTRY`（`ghcr.io`） | workflow env | cd.yml line 21 | cd.yml build job | 写在文件中，不改 |
+| `IMAGE_NAMESPACE` | workflow env | cd.yml line 22，`${{ github.repository_owner }}` | cd.yml SSH 临时传 docker | 自动跟随 owner |
+| **`DOMAIN`** | **服务器上的 Docker Compose 环境变量** | 服务器上 `docker-compose.yml`（line 70 等两处） | docker compose / Traefik | **手动填值一次**，详见下方 |
+
+> ⚠️ **`DOMAIN` 是服务器配置，不是 GitHub Actions 变量**——GitHub Actions SSH 进去执行 `docker compose up` 时，docker 直接读服务器上 `docker-compose.yml` 里的 `DOMAIN` 值，不会通过任何 secret / variable 传过去。所以它**永远不需要在 Environment Secrets / Repository Secrets 设置**。
+
+**首次部署前必须手动填值**（在服务器上执行，仅一次）：
+
+```bash
+cd /opt/app/agent-insight              # = DEPLOY_PATH
+sed -i 's/^      DOMAIN: ""$/      DOMAIN: "insight.yourdomain.com"/' \
+    docker-traefik/agent-insight/docker-compose.yml
+
+# 或手动 vim，找到所有 DOMAIN: "" 改成你的域名
+# 务必改两处（后端一个、前端一个）
+
+# 启动后 manage.sh 会自动检测 DOMAIN 是否已填，未填则拒绝启动：
+#   grep -q '^[[:space:]]*DOMAIN: ""' docker-compose.yml → 报错退出
+```
+
+> 💡 为什么 DOMAIN 是 Docker Compose 变量而不是 Secret？
+> - Traefik 的 label（`Host(\`${DOMAIN}\`)`）在容器启动时就要被 Traefik 解析——必须作为环境变量嵌在 yml 里
+> - 它是不变的部署期常量（不像 token 会轮换），所以存 yml 就够了
 
 ---
 
@@ -276,7 +312,7 @@ Error: ssh: handshake failed
 Error: denied: permission denied
 ```
 
-**解决**：检查 `DEPLOY_REGISTRY_TOKEN` 是否有效，GitHub PAT 需要 `read:packages` 权限。
+**解决**：检查 `IMAGE_REGISTRY_TOKEN` 是否有效，GitHub PAT 需要 `write:packages` + `read:packages` 权限。
 
 ### 7.3 部署失败
 
@@ -284,6 +320,24 @@ Error: denied: permission denied
 - 服务器 SSH 连接失败
 - 服务器未安装 Docker
 - 部署目录路径错误
+
+### 7.4 `DOMAIN` 未配置错误
+
+```
+Error: DOMAIN 未配置，请编辑 .../docker-compose.yml 填写域名
+```
+
+**解决**（在服务器上）：
+```bash
+cd /opt/app/agent-insight
+sed -i 's/^      DOMAIN: ""$/      DOMAIN: "insight.yourdomain.com"/' \
+    docker-traefik/agent-insight/docker-compose.yml
+
+# 验证两处都已填（前后端各一处）
+grep -n "DOMAIN:" docker-traefik/agent-insight/docker-compose.yml
+```
+
+> 域名必须 DNS 解析到服务器 IP（`A 记录 insight.yourdomain.com → x.x.x.x`）才能让 Let's Encrypt 签发证书。
 
 ---
 
