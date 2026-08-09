@@ -50,14 +50,15 @@ class EntitySchemaContractTest {
     @Disabled("需要真实 MySQL 连接，CI 环境跳过；本地开发时运行")
     @DisplayName("读路径实体的 @Column 必须真实存在于 MySQL (防止 502 雪崩)")
     void readPathEntitiesMustMatchMysqlSchema() throws Exception {
-        String host = System.getenv().getOrDefault("MYSQL_HOST", "127.0.0.1");
-        String port = System.getenv().getOrDefault("MYSQL_PORT", "3306");
+        // 测试用连接串：可由 MYSQL_URL 整体注入，也可用 MYSQL_HOST/PORT 单独覆盖（手工本地跑测试时）
+        String url = System.getenv().getOrDefault("MYSQL_URL", String.format(
+                "jdbc:mysql://%s:%s/%s?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC",
+                System.getenv().getOrDefault("MYSQL_HOST", "127.0.0.1"),
+                System.getenv().getOrDefault("MYSQL_PORT", "3306"),
+                SCHEMA));
         String user = System.getenv().getOrDefault("MYSQL_USERNAME",
                 System.getenv().getOrDefault("MYSQL_USER", "root"));
         String pass = System.getenv().getOrDefault("MYSQL_PASSWORD", "root830i");
-        String url = String.format(
-                "jdbc:mysql://%s:%s/%s?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC",
-                host, port, SCHEMA);
 
         try (Connection conn = DriverManager.getConnection(url, user, pass)) {
 

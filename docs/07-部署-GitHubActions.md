@@ -6,6 +6,7 @@
 | v1.1 | 2026-07-20 | - | 修正：DEPLOY_REGISTRY / DEPLOY_REGISTRY_TOKEN → IMAGE_REGISTRY_TOKEN（workflow 实际变量名）；修正 §3.3/§4 引导到 Repository Secrets → Environment `xcy` Secrets（CD workflow 有 `environment: xcy`） |
 | v1.2 | 2026-07-21 | - | 新增 §2.3 GitHub Actions 内置变量说明（`github.repository_owner` 等无需配置）；§2.4/§2.5 顺延到 §2.5/§2.6 |
 | v1.3 | 2026-07-21 | - | 新增 §1.3 关键环境变量分类表 + DOMAIN 说明（DOMAIN 是服务器 docker-compose.yml 变量，不是 GitHub Secret）；部署流程图加 Traefik/DOMAIN 路由；修 §7.2 把 `DEPLOY_REGISTRY_TOKEN` 改回 `IMAGE_REGISTRY_TOKEN`；新增 §7.4 DOMAIN 未填错误排查 |
+| v1.4 | 2026-08-09 | - | 废弃 `/opt/project/envs/`；改为 `/opt/project/agent-insight/.env`；DEPLOY_PATH=`/opt/project/agent-insight` |
 
 ---
 
@@ -53,21 +54,18 @@
 **首次部署前必须手动填值**（在服务器上执行，仅一次）：
 
 ```bash
-cd /opt/app/agent-insight              # = DEPLOY_PATH
-sed -i 's/^      DOMAIN: ""$/      DOMAIN: "insight.yourdomain.com"/' \
-    docker-traefik/agent-insight/docker-compose.yml
+cd /opt/project/agent-insight              # = DEPLOY_PATH
+cp -n .env.example .env
+# 编辑 .env：填写 DOMAIN=insight.yourdomain.com、MYSQL_PASSWORD 等
+vi .env
 
-# 或手动 vim，找到所有 DOMAIN: "" 改成你的域名
-# 务必改两处（后端一个、前端一个）
-
-# 启动后 manage.sh 会自动检测 DOMAIN 是否已填，未填则拒绝启动：
-#   grep -q '^[[:space:]]*DOMAIN: ""' docker-compose.yml → 报错退出
+# 启动后 manage.sh 会检测 .env 中 DOMAIN / MYSQL_PASSWORD
 ```
 
-> 💡 为什么 DOMAIN 是 Docker Compose 变量而不是 Secret？
-> - Traefik 的 label（`Host(\`${DOMAIN}\`)`）在容器启动时就要被 Traefik 解析——必须作为环境变量嵌在 yml 里
-> - 它是不变的部署期常量（不像 token 会轮换），所以存 yml 就够了
-
+> 💡 为什么 DOMAIN 写在项目 `.env`？
+> - Traefik labels（`Host(\`${DOMAIN}\`)`）在 `docker compose` 解析时从同级 `.env` 替换
+> - 数据库 / AI 凭据也在同一份 `.env`，由 `env_file: .env` 注入容器
+> - ~~不再使用 `/opt/project/envs/` 跨项目共享~~（2026-08-09）
 ---
 
 ## 2. 配置 GitHub Secrets
@@ -133,10 +131,9 @@ CD workflow 用到的 `${{ github.xxx }}` 全部是 **GitHub Actions 内置 cont
 
 | Secret 名称 | 说明 | 示例 |
 |------------|------|------|
-| `MYSQL_HOST` | MySQL 主机 | `mysql` |
-| `MYSQL_PORT` | MySQL 端口 | `3306` |
-| `MYSQL_DB` | 数据库名 | `agent_insight` |
+| `MYSQL_URL` | MySQL 完整 JDBC URL（2026-08 改造，替代原 `MYSQL_HOST/PORT/DB`） | `jdbc:mysql://mysql:3306/agent_insight?...` |
 | `MYSQL_USERNAME` | 数据库用户名 | `root` |
+| `MYSQL_PASSWORD` | 数据库密码 | `your-password` |
 | `MYSQL_PASSWORD` | 数据库密码 | `your_password` |
 | `MONGODB_URI` | MongoDB 连接 URI | `mongodb://mongo:27017/agent_insight` |
 | `REDIS_HOST` | Redis 主机 | `redis` |
@@ -176,24 +173,14 @@ gh secret set DEPLOY_PATH --body "/opt/docker/agent-insight" --env xcy
 # 实际登录用的是 IMAGE_REGISTRY_TOKEN（GitHub PAT，权限：read:packages / write:packages）
 gh secret set IMAGE_REGISTRY_TOKEN --body "你的GitHub_PAT" --env xcy
 
-# 数据库连接（CI/CD 暂不自动同步，由人工维护服务器上的 ../envs/db.env）
-# gh secret set MYSQL_HOST --body "你的MySQL主机" --env xcy
-# gh secret set MYSQL_PORT --body "3306" --env xcy
-# gh secret set MYSQL_DB --body "agent_insight" --env xcy
-# gh secret set MYSQL_USERNAME --body "root" --env xcy
-# gh secret set MYSQL_PASSWORD --body "你的MySQL密码" --env xcy
-# gh secret set MONGODB_URI --body "mongodb://你的MongoDB主机:27017/agent_insight" --env xcy
-# gh secret set REDIS_HOST --body "你的Redis主机" --env xcy
-# gh secret set REDIS_PORT --body "6379" --env xcy
-# gh secret set REDIS_PWD --body "你的Redis密码" --env xcy
-
-# AI 配置（CI/CD 暂不自动同步，由人工维护服务器上的 ../envs/llm.env）
-# gh secret set AI_ENABLED --body "false" --env xcy
+# 数据库 / AI 配置（CI/CD 暂不同步，人工维护项目 .env）
+# 位置：/opt/project/agent-insight/.env
+# ~~旧路径 /opt/project/envs/{db,llm}.env 已废弃（2026-08-09）~~
 ```
 
-> ⚠️ **说明**：数据库和 AI 配置暂不通过 CI/CD 同步，改为**人工维护**。如需修改配置，请直接登录服务器编辑对应目录下的 env 文件：
-> - `/opt/project/envs/db.env` — 数据库连接
-> - `/opt/project/envs/llm.env` — LLM 配置
+> ⚠️ **说明**：数据库和 AI 配置由人工维护在各项目自己的 `.env`：
+> - `/opt/project/agent-insight/.env` — agent-insight（DOMAIN + DB + AI）
+> - `/opt/project/cogniforge/.env` — cogniforge / ai / web 共用一份
 
 ---
 
@@ -329,12 +316,9 @@ Error: DOMAIN 未配置，请编辑 .../docker-compose.yml 填写域名
 
 **解决**（在服务器上）：
 ```bash
-cd /opt/app/agent-insight
-sed -i 's/^      DOMAIN: ""$/      DOMAIN: "insight.yourdomain.com"/' \
-    docker-traefik/agent-insight/docker-compose.yml
-
-# 验证两处都已填（前后端各一处）
-grep -n "DOMAIN:" docker-traefik/agent-insight/docker-compose.yml
+cd /opt/project/agent-insight
+# 在 .env 中设置 DOMAIN=insight.yourdomain.com
+grep -n '^DOMAIN=' .env
 ```
 
 > 域名必须 DNS 解析到服务器 IP（`A 记录 insight.yourdomain.com → x.x.x.x`）才能让 Let's Encrypt 签发证书。

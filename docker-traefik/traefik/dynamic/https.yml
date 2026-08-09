@@ -47,27 +47,37 @@ http:
   # 方式 2：IP 直接访问（无域名时使用）
   #  当用户访问 http://1.2.3.4 时，匹配此规则
   #  ⚠️ 把 1.2.3.4 改成你的服务器 IP
-  routers:
-    portainer: // 这只是个名字 portainer改成 xxx 也行
-      # rule：路由规则，定义什么请求会被这个 router 捕获
-      # Host(`IP`)：匹配请求的 Host 头等于这个 IP
-      # 例如：用户浏览器访问 http://1.2.3.4，Host 头就是 1.2.3.4
-      rule: "Host(`1.2.3.4`)"
-      service: portainer-svc  // 这里指向 services 里的 portainer-svc
-      entrypoints:
-        - websecure
-      tls:
-        certResolver: letsencrypt
+  # routers:
+  #   portainer:
+  #     rule: "Host(`1.2.3.4`)"
+  #     service: portainer-svc
+  #     entrypoints:
+  #       - websecure
+  #     tls:
+  #       certResolver: letsencrypt
 
-  services:
-    portainer-svc: // 这里定义了 portainer-svc 服务
-      loadBalancer:
-        servers:
-          # url：实际容器地址
-          # 格式：http://容器名:端口
-          # portainer 是 docker-compose-base.yml 中定义的容器名
-          # 9000 是 Portainer 容器的内部端口
-          - url: "http://portainer:9000"
+  # 方式 3：Docker Labels（推荐用于需要环境变量的场景）
+  #  在服务的 docker-compose.yml 中添加 labels，docker-compose 会自动替换 ${DOMAIN} 变量
+  #  Traefik 自动发现服务并应用路由规则，无需修改此文件（删掉或者https.yml 里关于 portainer 的全部配置都要注释）
+  #
+  #  示例（portainer docker-compose.yml 中添加）：
+  #   labels:
+  #     - "traefik.enable=true"
+  #     - "traefik.http.routers.portainer.rule=Host(`${DOMAIN}`)"
+  #     - "traefik.http.routers.portainer.entrypoints=websecure"
+  #     - "traefik.http.routers.portainer.tls=true"
+  #     - "traefik.http.services.portainer.loadbalancer.server.port=9000"
+  #
+  #  对比：
+  #  ┌─────────────┬───────────────┬───────────┬────────────────┐
+  #  │ 方式        │ 环境变量支持  │ 热加载    │ 配置位置        │
+  #  ├─────────────┼───────────────┼───────────┼────────────────┤
+  #  │ 方式 1/2    │ ❌ 不支持     │ ❌ 需reload│ traefik 目录   │
+  #  │ 方式 3      │ ✅ 支持       │ ✅ 自动   │ 各服务目录     │
+  #  └─────────────┴───────────────┴───────────┴────────────────┘
+  # ---------------------------------------------------------------------------
+  # 实际生效配置（IP 直接访问）
+  # ---------------------------------------------------------------------------
 
   # ---------------------------------------------------------------------------
   # Traefik Dashboard（仅内网访问时使用）

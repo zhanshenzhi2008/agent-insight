@@ -41,10 +41,11 @@ PARENT_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 BASE_DIR="${PARENT_DIR}/docker"
 DATABASES_DIR="${PARENT_DIR}/databases"
 # Agent Insight 应用配置在 agent-insight/ 子目录
+# 生产部署目录约定：/opt/project/agent-insight/（项目独立 .env，不再用 ../envs/）
 COMPOSE_FILE="${SCRIPT_DIR}/agent-insight/docker-compose.yml"
-ENV_DIR="${SCRIPT_DIR}/agent-insight/envs"
-DB_ENV_FILE="${ENV_DIR}/db.env"
-LLM_ENV_FILE="${ENV_DIR}/llm.env"
+APP_DIR="${SCRIPT_DIR}/agent-insight"
+ENV_FILE="${APP_DIR}/.env"
+ENV_EXAMPLE="${APP_DIR}/.env.example"
 # Traefik 配置文件目录（/opt/docker/traefik/）
 TRAEFIK_DIR="${BASE_DIR}/traefik"
 
@@ -65,13 +66,7 @@ check_env() {
     exit 1
   fi
 
-  # 检查 DOMAIN 是否在 docker-compose.yml 中已填值
-  if grep -q '^[[:space:]]*DOMAIN: ""' "${COMPOSE_FILE}"; then
-    log_err "DOMAIN 未配置，请编辑 ${COMPOSE_FILE} 填写域名"
-    exit 1
-  fi
-
-  # 检查凭据文件（db.env / llm.env）
+  # DOMAIN / 凭据均在项目 .env（与 compose 同级）
   check_env_files
 
   # 检查 proxy 网络
@@ -109,24 +104,23 @@ check_databases() {
   fi
 }
 
-# 检查凭据文件（envs/db.env 与 envs/llm.env）
+# 检查项目独立 .env（DOMAIN + MYSQL_PASSWORD）
 check_env_files() {
   local ok=0
 
-  # db.env 必须存在，且 MYSQL_PASSWORD 非空
-  if [ ! -f "${DB_ENV_FILE}" ]; then
-    log_err "缺少凭据文件 ${DB_ENV_FILE}"
-    log_info "  请执行: cp ${ENV_DIR}/db.env.example ${DB_ENV_FILE}"
+  if [ ! -f "${ENV_FILE}" ]; then
+    log_err "缺少 ${ENV_FILE}"
+    log_info "  请执行: cp ${ENV_EXAMPLE} ${ENV_FILE}"
     ok=1
-  elif grep -Eq '^[[:space:]]*MYSQL_PASSWORD=($|[[:space:]]*$)' "${DB_ENV_FILE}"; then
-    log_err "MYSQL_PASSWORD 未配置，请编辑 ${DB_ENV_FILE} 填写数据库密码"
-    ok=1
-  fi
-
-  # llm.env：缺文件则提示创建（但允许留空，因为 AI_ENABLED=false 时不需要）
-  if [ ! -f "${LLM_ENV_FILE}" ]; then
-    log_warn "缺少凭据文件 ${LLM_ENV_FILE}（AI_ENABLED=false 时可忽略）"
-    log_info "  创建方法: cp ${ENV_DIR}/llm.env.example ${LLM_ENV_FILE}"
+  else
+    if ! grep -Eq '^[[:space:]]*DOMAIN=[^[:space:]#]+' "${ENV_FILE}"; then
+      log_err "DOMAIN 未配置，请编辑 ${ENV_FILE}"
+      ok=1
+    fi
+    if grep -Eq '^[[:space:]]*MYSQL_PASSWORD=($|[[:space:]]*$)' "${ENV_FILE}"; then
+      log_err "MYSQL_PASSWORD 未配置，请编辑 ${ENV_FILE}（须与 /opt/databases/.env 一致）"
+      ok=1
+    fi
   fi
 
   if [ "${ok}" = "1" ]; then
@@ -154,24 +148,20 @@ do_init() {
     log_ok "已创建 Traefik acme.json"
   fi
 
-  # 创建 envs/ 目录并自动复制凭据模板（首次部署友好）
-  mkdir -p "${ENV_DIR}"
-  for f in db.env llm.env; do
-    if [ ! -f "${ENV_DIR}/${f}" ] && [ -f "${ENV_DIR}/${f}.example" ]; then
-      cp "${ENV_DIR}/${f}.example" "${ENV_DIR}/${f}"
-      log_ok "已创建 ${ENV_DIR}/${f}（请按需填写凭据）"
-    fi
-  done
+  # 创建项目 .env（首次部署友好）
+  mkdir -p "${APP_DIR}"
+  if [ ! -f "${ENV_FILE}" ] && [ -f "${ENV_EXAMPLE}" ]; then
+    cp "${ENV_EXAMPLE}" "${ENV_FILE}"
+    log_ok "已创建 ${ENV_FILE}（请填写 DOMAIN / MYSQL_PASSWORD 等）"
+  fi
 
   log_ok "初始化完成！"
   echo ""
   echo "下一步："
-  echo "  1. 编辑 ${COMPOSE_FILE} 填写 DOMAIN"
-  echo "  2. 编辑 ${DB_ENV_FILE} 填写 MYSQL_PASSWORD（与 /opt/databases 保持一致）"
-  echo "     如需启用 AI，请编辑 ${LLM_ENV_FILE}"
-  echo "  3. 运行 ./manage.sh databases start 启动数据库"
-  echo "  4. 运行 ./manage.sh traefik start 启动 Traefik"
-  echo "  5. 运行 ./manage.sh start 启动 Agent Insight"
+  echo "  1. 编辑 ${ENV_FILE} 填写 DOMAIN、MYSQL_PASSWORD（与 /opt/databases 一致）"
+  echo "  2. 运行 ./manage.sh databases start 启动数据库"
+  echo "  3. 运行 ./manage.sh traefik start 启动 Traefik"
+  echo "  4. 运行 ./manage.sh start 启动 Agent Insight"
 }
 
 # 启动 Traefik 基础服务

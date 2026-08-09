@@ -119,9 +119,9 @@ services:
     environment:
       JAVA_OPTS: "-Xms512m -Xmx1024m -XX:+UseG1GC"
       # MySQL 配置
-      MYSQL_HOST: mysql
-      MYSQL_PORT: 3306
-      MYSQL_DB: ${MYSQL_DB:-agent_insight}
+      # 主链路连接串由 MYSQL_URL 承载（数据库 + 字符集 + SSL + TZ 全部内嵌）
+      # MYSQL_USERNAME / MYSQL_PASSWORD 仍保留作容器初始化参数（上文 mysql 服务环境变量需匹配）
+      MYSQL_URL: jdbc:mysql://mysql:3306/${MYSQL_DB:-agent_insight}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai&useUnicode=true&characterEncoding=UTF-8
       MYSQL_USERNAME: ${MYSQL_USERNAME:-root}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:-root830i}
       # MongoDB

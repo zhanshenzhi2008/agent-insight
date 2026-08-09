@@ -1,156 +1,96 @@
 # =============================================================================
-# Agent Insight — Traefik 部署版 docker-compose.yml
+# Agent Insight — Traefik 部署版 docker-compose.yml（方案 A，推荐）
 # =============================================================================
-# 说明：
-#   - 本文件配合 Traefik v3 反向代理使用，自动 HTTPS + 路由
-#   - 不再暴露前端/后端到宿主机端口，全部通过 Traefik 统一入口
-#   - 数据库服务（MySQL/MongoDB/Redis）已拆分到独立部署目录：
-#       /opt/databases/   （参见 ../databases/）
-#   - 应用通过 external 网络 db-net 连接数据库
-#   - 适合多项目管理，详见 docs/07-部署文档.md
+# 方案 A 的流量路径：
+#   浏览器 → Traefik:443 → agent-insight-frontend:80
+#                         └→ Nginx /api/* → agent-insight-backend:9280
 #
-# 配置方式：
-#   - 数据库连接 / AI 凭据拆到 envs/*.env（本地按需创建，参考 envs/*.env.example）
-#   - 部署期常量（DOMAIN / Spring 配置 / 容器内路径）直接写在 environment
-#   - 凭据文件应加入 .gitignore（只提交 .example 模板）
+# 前置条件：
+#   - Traefik 已运行并加入 external 网络 proxy；其 web entrypoint 会跳转 HTTPS。
+#   - MySQL / MongoDB / Redis 已运行并加入 external 网络 db-net。
+#   - 本项目部署目录为 /opt/project/agent-insight/。
 #
-# 部署步骤（单机云服务器，无环境切换）：
-#   1. 先部署数据库：
-#        cd /opt/databases
-#        docker compose up -d
-#   2. 再启动 Traefik：
-#        cd /opt/docker && docker compose -f docker-compose-base.yml up -d
-#   3. 创建 envs 文件并填写凭据：
-#        cd /opt/app/agent-insight
-#        cp envs/db.env.example envs/db.env && vi envs/db.env
-#        cp envs/llm.env.example envs/llm.env && vi envs/llm.env
-#   4. 编辑下方 DOMAIN 字段
-#   5. 最后启动应用（本文件）：
-#        docker compose up -d
+# 配置来源：
+#   - 复制 .env.example 为同级 .env；该文件既供 Compose 插值，也注入后端容器。
+#   - 在 Portainer 部署时，将同名变量填写在 Stack environment variables。
+#   - .env 含凭据，严禁提交；仅提交 .env.example 模板。
 #
-# 访问地址（配置域名后）：
-#   https://insight.yourdomain.com          → 前端
-#   https://insight.yourdomain.com/api/     → 后端 API（Vite proxy）
-#   https://insight.yourdomain.com/doc.html → Swagger
+# 部署步骤：
+#   1. cd /opt/databases && docker compose up -d
+#   2. cd /opt/docker && docker compose -f docker-compose-base.yml up -d
+#   3. cd /opt/project/agent-insight
+#        cp .env.example .env && vi .env   # 填 DOMAIN / MYSQL_PASSWORD 等
+#        sudo mkdir -p data && sudo chown -R 1000:1000 data
+#   4. docker compose up -d
+#
+# 访问：
+#   https://${DOMAIN}/          → 前端
+#   https://${DOMAIN}/api/      → API（Nginx 内部代理）
+#   https://${DOMAIN}/doc.html  → Swagger
 # =============================================================================
 
 services:
-  # ---------------------------------------------------------------------------
-  # 后端服务（Spring Boot 4.1）
-  # 数据库连接：mysql / mongodb / redis 容器名需在 db-net 中可解析
-  # ---------------------------------------------------------------------------
   agent-insight-backend:
-    # 注意：此 build 配置仅在“服务器上直接放源码并构建镜像”时使用。
-    # 若你当前云端部署采用 GitHub Actions 构建好的镜像，请注释掉下方 build，
-    # 改用 image: ghcr.io/<owner>/agent-insight/backend:<tag>。
+    # 源码构建仅本地调试用；生产用 GHCR 镜像。
     #build:
     #  context: ../../agent-insight-server
     #  dockerfile: Dockerfile
-    image: ghcr.io/devopstools/agent-insight/backend:latest
+    image: ghcr.io/${IMAGE_NAMESPACE:-zhanshenzhi2008}/agent-insight/backend:latest
     container_name: agent-insight-backend
     restart: unless-stopped
     expose:
       - "9280"
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.agent-insight-backend.rule=Host(`${DOMAIN}`)"
-      - "traefik.http.routers.agent-insight-backend.entrypoints=websecure"
-      - "traefik.http.routers.agent-insight-backend.tls.certresolver=letsencrypt"
-      - "traefik.http.services.agent-insight-backend.loadbalancer.server.port=9280"
-      - "traefik.docker.network=proxy"
+    # 仅供内部访问：没有 Traefik labels，也不加入 proxy。
+    # 前端通过 db-net 中的服务名 agent-insight-backend:9280 访问它。
+    # 需要直接公开 API 时，使用 docker-compose.b-traefik-api.yml 或方案 C。
     env_file:
-      # 数据库连接（需先 cp envs/db.env.example envs/db.env 并填写）
-      - ../envs/db.env
-      # AI 凭据（需先 cp envs/llm.env.example envs/llm.env 并填写，AI_ENABLED=false 时可留空）
-      - ../envs/llm.env
+      - .env
     environment:
       JAVA_OPTS: "-Xms512m -Xmx1024m -XX:+UseG1GC"
-
-      # 域名（Traefik 路由匹配用） <必填>
-      DOMAIN: ""
-
-      # 日志路径（容器内目录）
+      # 这是应用进程环境变量；Traefik labels 中的 ${DOMAIN} 在 Compose 解析时
+      # 已从同级 .env 或 Portainer Stack environment variables 取值。
+      #DOMAIN: "${DOMAIN:-}"
       INSIGHT_LOG_ROOT: /app/project/data
       INSIGHT_SCRIPT_ROOT: /app/project/data/system/agt
     volumes:
-      # 数据持久化目录（与数据库分离）
-      - agent-data:/app/project/data
+      - ${DATA_ROOT:-/opt/project/agent-insight/data}:/app/project/data
     networks:
-      # 数据库网络（external，由 /opt/databases/ 创建）
       - db-net
-      # Traefik 代理网络（external，由 /opt/docker/ 创建）
-      - proxy
+      # 方案 A 不加入 proxy
 
-  # ---------------------------------------------------------------------------
-  # 前端服务（React + Vite + Nginx）
-  # ---------------------------------------------------------------------------
-  # 路由方案选择（根据实际需求选择一种）：
-  #
-  # 方案 A（推荐）：只通过前端 nginx 代理 API，后端无需 Traefik 路由
-  #   - 优点：前端统一入口，配置简单
-  #   - 前端 nginx 会把 /api/* 转发到 agent-insight-backend:9280
-  #   - 只需给前端配置 Traefik 路由（见下方 labels）
-  #
-  # 方案 B：如果前端 nginx 不代理 API，需要 Traefik 同时路由前后端
-  #   - 前端 nginx 只处理静态文件
-  #   - Traefik 路由 /api/* 到后端，/* 到前端
-  #   - 需要额外给后端配置 Traefik labels（见下方被注释的 labels）
-  #
-  # 方案 C：前后端独立域名
-  #   - 前端：frontend.yourdomain.com
-  #   - 后端 API：api.yourdomain.com
-  #   - 各自配置独立的 Traefik 路由
-  # ---------------------------------------------------------------------------
   agent-insight-frontend:
-    # 注意：此 build 配置仅在“服务器上直接放源码并构建镜像”时使用。
-    # 若你当前云端部署采用 GitHub Actions 构建好的镜像，请注释掉下方 build，
-    # 改用 image: ghcr.io/<owner>/agent-insight/frontend:<tag>。
     #build:
     #  context: ../../agent-insight-web
     #  dockerfile: ../../agent-insight-web/Dockerfile
     #  args:
     #    VITE_API_BASE_URL: /api
-    image: ghcr.io/devopstools/agent-insight/frontend:latest
+    image: ghcr.io/${IMAGE_NAMESPACE:-zhanshenzhi2008}/agent-insight/frontend:latest
     container_name: agent-insight-frontend
     restart: unless-stopped
     expose:
       - "80"
+    # 唯一的公网入口。DOMAIN 必须是完整域名，例如 insight.example.com；
+    # 变量缺失时 Compose 会拒绝部署，避免生成 Host(``) 的无效路由。
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.agent-insight-frontend.rule=Host(`${DOMAIN}`)"
+      - "traefik.http.routers.agent-insight-frontend.rule=Host(`${DOMAIN:?Set DOMAIN in .env}`)"
       - "traefik.http.routers.agent-insight-frontend.entrypoints=websecure"
       - "traefik.http.routers.agent-insight-frontend.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.agent-insight-frontend.priority=10"
       - "traefik.http.services.agent-insight-frontend.loadbalancer.server.port=80"
       - "traefik.docker.network=proxy"
-
-    # 方案 B：如果需要 Traefik 同时路由后端，启用以下 labels（注释掉上面的后端 labels）
-    # 注意：启用方案 B 时，需要注释掉上方前端 labels 中的 agent-insight-frontend 相关配置
-    # environment:
-    #   # 如果用 Traefik 直接路由 API，需要在 Vite 配置中把 VITE_API_BASE_URL 改为完整地址
-    #   VITE_API_BASE_URL: https://${DOMAIN}/api
-
     depends_on:
       - agent-insight-backend
     networks:
       - db-net
       - proxy
 
-# -----------------------------------------------------------------------------
-# 网络（全部 external，引用外部已存在的网络）
-# -----------------------------------------------------------------------------
-#   - db-net  由 /opt/databases/ 创建并维护
-#   - proxy              由 /opt/docker/docker-compose-base.yml 创建并维护
 networks:
+  # 项目内部网络：前端经此网络访问后端，后端经此网络访问数据库。
   db-net:
     name: db-net
     external: true
+  # Traefik 代理网络：方案 A 中只有前端加入，后端不会被 Traefik 发现。
   proxy:
     name: proxy
     external: true
-
-# -----------------------------------------------------------------------------
-# 数据卷（仅应用自身的 agent-data，数据库数据卷在 /opt/databases/ 中维护）
-# -----------------------------------------------------------------------------
-volumes:
-  agent-data:
-    driver: local

@@ -1,0 +1,64 @@
+# =============================================================================
+# Agent Insight — 方案 B：Traefik 直接路由 API
+# =============================================================================
+# 适用：同域 DOMAIN，Traefik 分流 /api/* → backend:9280
+# 必填：同级 .env 中 DOMAIN（及数据库/AI 变量，见 .env.example）
+# 前端镜像须以 VITE_API_BASE_URL=/api 构建
+# 生产目录：/opt/project/agent-insight/
+# =============================================================================
+
+services:
+  agent-insight-backend:
+    image: ghcr.io/${IMAGE_NAMESPACE:-zhanshenzhi2008}/agent-insight/backend:latest
+    container_name: agent-insight-backend
+    restart: unless-stopped
+    expose:
+      - "9280"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=proxy"
+      - "traefik.http.routers.agent-insight-backend.rule=Host(`${DOMAIN:?Set DOMAIN in .env}`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.agent-insight-backend.entrypoints=websecure"
+      - "traefik.http.routers.agent-insight-backend.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.agent-insight-backend.priority=100"
+      - "traefik.http.services.agent-insight-backend.loadbalancer.server.port=9280"
+    env_file:
+      - .env
+    environment:
+      JAVA_OPTS: "-Xms512m -Xmx1024m -XX:+UseG1GC"
+      DOMAIN: "${DOMAIN:-}"
+      INSIGHT_LOG_ROOT: /app/project/data
+      INSIGHT_SCRIPT_ROOT: /app/project/data/system/agt
+    volumes:
+      - ${DATA_ROOT:-/opt/project/agent-insight/data}:/app/project/data
+    networks:
+      - db-net
+      - proxy
+
+  agent-insight-frontend:
+    image: ghcr.io/${IMAGE_NAMESPACE:-zhanshenzhi2008}/agent-insight/frontend:latest
+    container_name: agent-insight-frontend
+    restart: unless-stopped
+    expose:
+      - "80"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=proxy"
+      - "traefik.http.routers.agent-insight-frontend.rule=Host(`${DOMAIN:?Set DOMAIN in .env}`)"
+      - "traefik.http.routers.agent-insight-frontend.entrypoints=websecure"
+      - "traefik.http.routers.agent-insight-frontend.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.agent-insight-frontend.priority=10"
+      - "traefik.http.services.agent-insight-frontend.loadbalancer.server.port=80"
+    depends_on:
+      - agent-insight-backend
+    networks:
+      - db-net
+      - proxy
+
+networks:
+  db-net:
+    name: db-net
+    external: true
+  proxy:
+    name: proxy
+    external: true

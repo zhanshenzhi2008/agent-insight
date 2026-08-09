@@ -11,11 +11,12 @@ agent-insight/
 ├── docker-traefik/                # Traefik 部署模式（当前项目）
 │   ├── manage.sh                 # 一键管理脚本（含 databases / agent-insight 子命令）
 │   ├── agent-insight/            # Agent Insight 应用配置（项目独立部署目录）
-│   │   ├── docker-compose.yml    # 应用编排（backend + frontend）
-│   │   └── envs/                 # 环境变量模板
-│   │       ├── db.env.example    # 数据库连接配置
-│   │       └── llm.env.example   # LLM Provider 配置
-│   ├── databases/                # 数据库集合（MySQL / MongoDB / Redis）
+│   │   ├── docker-compose.yml    # 应用编排（backend + frontend，方案 A）
+│   │   ├── docker-compose.b-traefik-api.yml
+│   │   ├── docker-compose.c-separate-domains.yml
+│   │   ├── .env.example          # 项目独立配置模板（DOMAIN / DB / AI）
+│   │   └── envs/                 # ~~旧模板~~（已废弃，见 .env.example）
+│   ├── databases/                # 数据库集合（MySQL / MongoDB / Redis / pgsql）
 │   │   ├── docker-compose.yml
 │   │   ├── databases.env.example # 数据库服务自身配置
 │   │   └── mysql/init.sql        # MySQL 初始化脚本
@@ -23,7 +24,7 @@ agent-insight/
 │       ├── docker-compose-base.yml   # Traefik + Portainer 基础服务
 │       ├── traefik.yml             # Traefik 主配置
 │       └── dynamic/
-│           └── https.yml           # 动态路由配置
+│           └── https.yml           # 动态路由说明（可选 file provider）
 └── ...
 ```
 
@@ -31,27 +32,33 @@ agent-insight/
 
 ```
 /opt/
-├── docker/                        # Traefik 基础设施根目录
-│   ├── docker-compose-base.yml    # /opt/docker/docker-compose-base.yml
-│   ├── traefik/                   # /opt/docker/traefik/
-│   │   ├── traefik.yml
-│   │   ├── acme.json
-│   │   └── dynamic/
-│   └── portainer/
-│       └── data/
+├── docker/                        # Traefik + Portainer
+│   ├── docker-compose-base.yml
+│   ├── .env                       # BASE_DOMAIN=...
+│   ├── traefik/
+│   └── portainer/data/
 │
-├── databases/                     # 数据库集合（docker-traefik/databases 部署到这里）
+├── databases/                     # 公用数据库
 │   ├── docker-compose.yml
 │   ├── .env
 │   ├── mysql/data/
 │   ├── mongodb/data/
-│   └── redis/data/
+│   ├── redis/data/
+│   └── pgsql/data/
 │
-└── project/                       # 应用项目（每个项目一个目录）
+└── project/                       # 每个工程独立目录 + 独立 .env
     ├── agent-insight/
-    │   └── docker-traefik/        # 当前项目
-    └── other-project/
+    │   ├── docker-compose.yml
+    │   ├── .env                   # 本项目全部配置
+    │   └── data/
+    └── cogniforge/                # cogniforge + ai + web 共用此目录的 .env
+        ├── docker-compose.yml
+        ├── docker-compose-ai.yml
+        ├── docker-compose-web.yml
+        └── .env
 ```
+
+> ~~`/opt/project/envs/`~~（2026-08-09 废弃）：不再使用跨项目共享 env；各工程在 `/opt/project/<工程>/` 自管 `.env`。
 
 ### 网络架构
 
@@ -116,10 +123,11 @@ cp agent-insight/docker-traefik/traefik/docker-compose-base.yml /opt/docker/
 cp -r agent-insight/docker-traefik/databases/* /opt/databases/
 cd /opt/databases && cp databases.env.example .env && cd -
 
-# 应用配置
-mkdir -p /opt/app/agent-insight
-cp -r agent-insight/docker-traefik/agent-insight/* /opt/app/agent-insight/
-cd /opt/app/agent-insight && cp envs/db.env.example envs/db.env && cp envs/llm.env.example envs/llm.env && cd -
+# 应用配置 → /opt/project/agent-insight/
+mkdir -p /opt/project/agent-insight/data
+cp -r agent-insight/docker-traefik/agent-insight/* /opt/project/agent-insight/
+cd /opt/project/agent-insight && cp .env.example .env && vi .env
+# 必填：DOMAIN、MYSQL_PASSWORD（与 /opt/databases/.env 的 MYSQL_ROOT_PASSWORD 一致）
 ```
 
 ### Step 3: 修改配置
@@ -135,12 +143,13 @@ certificatesResolvers:
       email: your@email.com  # 改成你的邮箱
 ```
 
-编辑 `/opt/docker/traefik/dynamic/https.yml`：
+编辑 `/opt/docker/.env`（Portainer Labels 用）：
 
-```yaml
-# portainer.yourdomain.com 改成你的域名
-rule: "Host(`portainer.yourdomain.com`)"
+```env
+BASE_DOMAIN=yourdomain.com
 ```
+
+Portainer 访问：`https://portainer.${BASE_DOMAIN}`（由 Docker Labels 自动发现，无需改 https.yml）。
 
 #### 3.2 配置 DNS（必须有域名时）
 
@@ -168,16 +177,12 @@ docker ps | grep traefik   # 验证
 ### Step 5: 部署 Agent Insight
 
 ```bash
-cd /opt/app/agent-insight
+cd /opt/project/agent-insight
 
-# 编辑 .env，配置域名和凭据
-vim envs/db.env
-vim envs/llm.env
+# 编辑本项目独立 .env（DOMAIN / 数据库 / AI）
+vi .env
 
-# 编辑 DOMAIN（在 docker-compose.yml 中设置）
-vim docker-compose.yml  # 找到 DOMAIN: "" 填入域名
-
-# 启动
+# 启动（方案 A）
 docker compose up -d
 
 # 查看状态

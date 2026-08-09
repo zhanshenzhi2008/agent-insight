@@ -17,7 +17,9 @@ import java.util.concurrent.ConcurrentHashMap;
  * <p>
  * 默认端口支持 env 覆盖，优先级：
  * 1. ConnectionConfig.port（非 null）
- * 2. 环境变量 POSTGRES_PORT / MYSQL_PORT / MONGODB_PORT
+ * 2. 环境变量 POSTGRES_PORT / MONGODB_PORT（作为单独端口覆盖兜底）
+ *    注：MYSQL 端口的环境变量兜底已在 #3.7 改造中废弃，原因是主链路走 MYSQL_URL，
+ *    端口解析由 JDBC URL 自身承担；如确需单独覆盖 port，建在 Mongo InsightDatasource 中显式指定。
  * 3. 内置默认值
  */
 @Slf4j
@@ -124,7 +126,10 @@ public class DynamicDatasourceManager {
 
     private int getDefaultPort(String type) {
         return switch (type.toUpperCase()) {
-            case "MYSQL" -> getEnvInt("MYSQL_PORT", DEFAULT_MYSQL_PORT);
+            // MYSQL 端口兜底：保留 DEFAULT_MYSQL_PORT 常量作为最后一道防线，
+            // 实际部署中端口已由 ConnectionConfig.port 或 MYSQL_URL 决定，
+            // 环境变量 MYSQL_PORT 兜底链路已废弃。
+            case "MYSQL" -> DEFAULT_MYSQL_PORT;
             case "POSTGRESQL" -> getEnvInt("POSTGRES_PORT", DEFAULT_POSTGRES_PORT);
             default -> DEFAULT_MYSQL_PORT;
         };

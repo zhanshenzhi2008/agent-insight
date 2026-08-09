@@ -30,7 +30,9 @@ services:
   # Traefik 反向代理 + 自动 HTTPS
   # ---------------------------------------------------------------------------
   traefik:
-    image: traefik:v3.0
+    # v3.6.1+ 才兼容 Docker Engine 29（API min 1.44）
+    # 旧版会报：client version 1.24 is too old
+    image: traefik:v3.6.1
     container_name: traefik
     restart: unless-stopped
     ports:
@@ -51,17 +53,36 @@ services:
   # ---------------------------------------------------------------------------
   # Portainer 可视化管理（可选）
   # ---------------------------------------------------------------------------
+  # 路由方式说明：
+  #   - 方式 A（推荐）：通过 Docker Labels 自动发现路由（下方 labels 配置）
+  #     - 无需在 https.yml 里手动写 portainer 的 router/service
+  #     - Traefik 自动读取容器 labels，文件变化自动 reload（traefik.yml 中 watch: true）
+  #   - 方式 B（手动）：在 https.yml 的 file provider 里写死 router/service
+  #     - 需要两处同时维护，容易不一致
+  #     - 适合：某些服务不支持加 labels 时
+  # ---------------------------------------------------------------------------
   portainer:
     image: portainer/portainer-ce:latest
     container_name: portainer
     restart: unless-stopped
     ports:
-      - "9443:9443"    # HTTPS 管理界面
+      - "127.0.0.1:9443:9443"    # HTTPS 管理界面
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./portainer/data:/data
+    environment:
+      - TZ=Asia/Shanghai
+    # 【方式 A】Docker Labels 自动发现（由 traefik.yml 的 providers.docker 读取）
+    # 域名来自 /opt/docker/.env 的 BASE_DOMAIN（例如 sqrt3lab.duckdns.org）
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.portainer.rule=Host(`portainer.${BASE_DOMAIN}`)"
+      - "traefik.http.routers.portainer.entrypoints=websecure"
+      - "traefik.http.routers.portainer.tls.certresolver=letsencrypt"
+      - "traefik.http.services.portainer.loadbalancer.server.port=9000"
     networks:
       - proxy
+    # 注：portainer 的 router/service 已通过 Docker Labels + ${BASE_DOMAIN} 自动发现
 
 networks:
   proxy:

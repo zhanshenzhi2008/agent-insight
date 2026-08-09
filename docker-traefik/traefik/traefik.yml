@@ -40,9 +40,25 @@ providers:
     network: proxy
     watch: true
 
-  file:
-    directory: /etc/traefik/dynamic
-    watch: true
+# =============================================================================
+# 【已废弃】File Provider 配置（改用 Docker Labels 方式）
+# =============================================================================
+# 原因：portainer 等服务的路由已改用 Docker Labels 自动发现，
+#       不再需要在 file provider 的 .yml 文件里手动维护路由。
+# 
+# 原配置（已注释）：
+#   file:
+#     directory: /etc/traefik/dynamic
+#     watch: true
+#
+# 如果未来需要手动维护路由（非 Docker 容器），可以：
+#   1. 恢复 file provider 配置
+#   2. 在 https.yml 中写 router/service
+#   3. 保留 dynamic/ 目录
+# =============================================================================
+# file:
+#     directory: /etc/traefik/dynamic
+#     watch: true
 
 certificatesResolvers:
   letsencrypt:
