@@ -35,6 +35,10 @@ services:
     image: traefik:v3.6.1
     container_name: traefik
     restart: unless-stopped
+    # 这个路径必须和下面 volume 的容器侧路径对应：
+    # ./traefik/traefik.yml:/traefik.yml:ro  <->  --configFile=/traefik.yml
+    # 否则 Traefik 会回退默认配置路径，出现只剩 internal routers、业务域名 404。
+    command: ["traefik", "--configFile=/traefik.yml"]
     ports:
       - "80:80"
       - "443:443"

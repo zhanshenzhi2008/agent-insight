@@ -174,6 +174,9 @@ docker compose -f docker-compose-base.yml up -d
 docker ps | grep traefik   # 验证
 ```
 
+> 说明：`docker-compose-base.yml` 中 Traefik 已显式配置 `command: ["traefik", "--configFile=/traefik.yml"]`，
+> 对应静态配置挂载路径 `./traefik/traefik.yml:/traefik.yml:ro`。如果移除该 command，请同步把挂载路径改回 `/etc/traefik/traefik.yml`。
+
 ### Step 5: 部署 Agent Insight
 
 ```bash
