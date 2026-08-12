@@ -44,6 +44,8 @@ EXPOSE 9280
 
 ENV JAVA_OPTS="-Xms512m -Xmx1024m -XX:+UseG1GC"
 
+# Spring Boot 官方 Actuator（原生），默认路径 /actuator/health —— 不是 Nginx 的 /health
+# 需依赖 spring-boot-starter-actuator；与前端 compose 里 80/health 无关
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:9280/actuator/health || exit 1
 

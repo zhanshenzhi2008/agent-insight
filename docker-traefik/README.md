@@ -320,14 +320,23 @@ networks:
 
 ## 故障排查
 
-### Traefik 无法发现服务
+### Traefik 无法发现服务 / 域名 404
+
+1. **Traefik ≥ v3.6.1**：旧版（如 v3.4）在 Docker Engine 29 上会报 `client version 1.24 is too old`，Docker provider 失效。
+2. **自定义 `/traefik.yml` 挂载**须 `command: ["traefik", "--configFile=/traefik.yml"]`。
+3. **unhealthy 会被 Traefik v3 过滤**（日志：`Filtering unhealthy or starting container`）。  
+   Alpine BusyBox `wget` **不支持** `--bind-address` / `--no-verbose` / `--tries`。  
+   正确示例：`wget -q --spider http://127.0.0.1:80/health`
 
 ```bash
 # 检查容器是否在 proxy 网络中
 docker inspect <container> | grep proxy
 
-# 检查 Traefik 日志
-docker logs traefik --tail 100
+# 版本 / 路由 / 健康
+docker exec traefik traefik version
+curl -s http://127.0.0.1:8080/api/http/routers
+docker ps --format 'table {{.Names}}\t{{.Status}}'
+docker inspect <frontend> --format '{{json .State.Health}}'
 ```
 
 ### 应用无法连接数据库

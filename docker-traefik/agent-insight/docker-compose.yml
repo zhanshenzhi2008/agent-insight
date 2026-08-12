@@ -43,6 +43,10 @@ services:
     # 仅供内部访问：没有 Traefik labels，也不加入 proxy。
     # 前端通过 db-net 中的服务名 agent-insight-backend:9280 访问它。
     # 需要直接公开 API 时，使用 docker-compose.b-traefik-api.yml 或方案 C。
+    #
+    # 后端是 Spring Boot：健康检查用官方 Actuator，不是 Nginx 的 /health。
+    # Dockerfile HEALTHCHECK：curl -f http://localhost:9280/actuator/health
+    # （需 spring-boot-starter-actuator；默认路径 /actuator/health，不是 /health）
     env_file:
       - .env
     environment:
@@ -79,6 +83,19 @@ services:
       - "traefik.http.routers.agent-insight-frontend.priority=10"
       - "traefik.http.services.agent-insight-frontend.loadbalancer.server.port=80"
       - "traefik.docker.network=proxy"
+    # 覆盖镜像 HEALTHCHECK：BusyBox wget 仅支持 -q/--spider 子集
+    # Traefik v3 会过滤 unhealthy/starting 容器导致域名 404
+    #
+    # 注意：这是【前端 Nginx】容器的健康检查，不是 Java 后端！
+    # - Spring Boot（本项目后端）原生健康检查是 Actuator：/actuator/health（端口 9280）
+    # - 本行探测的是本容器 Nginx 的 location = /health（端口 80，nginx.conf 内 return 200）
+    # - 切勿写成 actuator 或 9280：frontend 容器里没有 Spring，检查必失败 → Traefik 404
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:80/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     depends_on:
       - agent-insight-backend
     networks:

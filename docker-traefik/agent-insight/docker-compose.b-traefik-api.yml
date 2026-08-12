@@ -49,6 +49,13 @@ services:
       - "traefik.http.routers.agent-insight-frontend.tls.certresolver=letsencrypt"
       - "traefik.http.routers.agent-insight-frontend.priority=10"
       - "traefik.http.services.agent-insight-frontend.loadbalancer.server.port=80"
+    # 前端 Nginx /health（非 Spring Actuator）。后端健康见镜像内 /actuator/health:9280
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:80/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     depends_on:
       - agent-insight-backend
     networks:

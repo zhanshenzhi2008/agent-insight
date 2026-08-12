@@ -31,7 +31,10 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 80
 
+# nginx:alpine 是 BusyBox wget：不支持 --bind-address / --no-verbose / --tries
+# 仅用 -q --spider；失败会导致 unhealthy，Traefik v3 会过滤路由
+# 这是 Nginx 自配 /health，不是 Spring Boot Actuator（后端用 /actuator/health:9280）
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://127.0.0.1:80/health || exit 1
+    CMD wget -q --spider http://127.0.0.1:80/health || exit 1
 
 CMD ["nginx", "-g", "daemon off;"]
