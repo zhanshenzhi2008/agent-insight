@@ -1,212 +1,244 @@
-name: Deploy
+# =============================================================================
+# Agent Insight - CD（对齐 ai-job-hunter + github-cicd-template skill）
+#
+# 硬规则：
+#   - 服务器只 docker login → pull → up；不 SCP/rsync 覆盖 compose / .env
+#   - 镜像双 tag：immutable(sha) + :latest；服务器始终拉 :latest
+#   - 镜像路径与 compose 一致：…/agent-insight/backend、…/agent-insight/frontend
+#   - CI 通过后才部署（workflow_run）
+#
+# Secrets：DEPLOY_HOST / DEPLOY_USER / DEPLOY_SSH_KEY / DEPLOY_PATH
+#          DEPLOY_SSH_PORT（可选）IMAGE_REGISTRY_TOKEN（可选，默认 GITHUB_TOKEN）
+# =============================================================================
+
+name: CD
 
 on:
-  push:
-    branches:
-      - main
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
   workflow_dispatch:
     inputs:
       service:
-        description: '选择部署服务'
+        description: "选择部署服务"
         required: true
-        default: 'all'
+        default: "all"
         type: choice
         options:
           - all
           - backend
           - frontend
+      image_tag:
+        description: "留空=latest；回滚填历史 sha"
+        required: false
+        default: ""
+        type: string
 
 env:
-  # ── 镜像命名（公开信息，写在 workflow 里）──
   IMAGE_REGISTRY: ghcr.io
   IMAGE_NAMESPACE: ${{ github.repository_owner }}
-  IMAGE_PROJECT: agent-insight
+  # GHCR 包路径（slash）；compose image 必须一致
+  IMAGE_BACKEND: agent-insight/backend
+  IMAGE_FRONTEND: agent-insight/frontend
   COMPOSE_FILE: docker-compose.yml
+  COMPOSE_BACKEND: agent-insight-backend
+  COMPOSE_FRONTEND: agent-insight-frontend
+  DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+  DEPLOY_PRIMARY_BRANCH: ${{ vars.DEPLOY_PRIMARY_BRANCH || 'main' }}
+
+permissions:
+  contents: read
+  packages: write
+  actions: write
+  issues: write
 
 jobs:
-  # ---------------------------------------------------------------------------
-  # 检测变更范围，决定是否需要 build
-  # ---------------------------------------------------------------------------
-  detect-changes:
+  prepare:
+    name: Decide what to build
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    outputs:
+      build_backend: ${{ steps.decide.outputs.build_backend }}
+      build_frontend: ${{ steps.decide.outputs.build_frontend }}
+      build_any: ${{ steps.decide.outputs.build_any }}
+      head_sha: ${{ steps.decide.outputs.head_sha }}
+      head_branch: ${{ steps.decide.outputs.head_branch }}
+    steps:
+      - name: Decide
+        id: decide
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            SHA="${{ github.sha }}"
+            BRANCH="${{ github.ref_name }}"
+            SVC="${{ inputs.service }}"
+            BE=false; FE=false
+            case "$SVC" in
+              all) BE=true; FE=true ;;
+              backend) BE=true ;;
+              frontend) FE=true ;;
+            esac
+          else
+            SHA="${{ github.event.workflow_run.head_sha }}"
+            BRANCH="${{ github.event.workflow_run.head_branch }}"
+            BE=true
+            FE=true
+          fi
+
+          if [ "$BRANCH" != "${{ env.DEPLOY_PRIMARY_BRANCH }}" ] && [ "${{ github.event_name }}" != "workflow_dispatch" ]; then
+            echo "Not primary branch ($BRANCH), skip"
+            BE=false; FE=false
+          fi
+
+          ANY=false
+          if [ "$BE" = "true" ] || [ "$FE" = "true" ]; then ANY=true; fi
+
+          echo "build_backend=$BE" >> "$GITHUB_OUTPUT"
+          echo "build_frontend=$FE" >> "$GITHUB_OUTPUT"
+          echo "build_any=$ANY" >> "$GITHUB_OUTPUT"
+          echo "head_sha=$SHA" >> "$GITHUB_OUTPUT"
+          echo "head_branch=$BRANCH" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Build & Push Images
+    needs: prepare
+    if: needs.prepare.outputs.build_any == 'true'
     runs-on: ubuntu-latest
     outputs:
-      build_backend: ${{ steps.changes.outputs.build_backend }}
-      build_frontend: ${{ steps.changes.outputs.build_frontend }}
-      build_any: ${{ steps.changes.outputs.build_any }}
+      image_tag: ${{ steps.vars.outputs.image_tag }}
+
     steps:
       - uses: actions/checkout@v5
         with:
-          fetch-depth: 0
-
-      - name: Detect changed paths
-        id: changes
-        run: |
-          # workflow_dispatch 触发时跳过检测（手动选择全量构建）
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            echo "=== 手动触发，跳过变更检测，全量构建 ==="
-            echo "build_backend=true" >> $GITHUB_OUTPUT
-            echo "build_frontend=true" >> $GITHUB_OUTPUT
-            echo "build_any=true" >> $GITHUB_OUTPUT
-            echo "build_backend=true"
-            echo "build_frontend=true"
-            echo "build_any=true"
-            exit 0
-          fi
-
-          echo "=== Compare against origin/main ==="
-          git fetch origin main --depth=1
-          CHANGED=$(git diff origin/main...HEAD --name-only)
-          echo "$CHANGED"
-          echo ""
-
-          echo "build_backend=false" >> $GITHUB_OUTPUT
-          echo "build_frontend=false" >> $GITHUB_OUTPUT
-          echo "build_any=false" >> $GITHUB_OUTPUT
-
-          for f in $CHANGED; do
-            case "$f" in
-              .github/workflows/cd.yml)
-                echo "🔴 workflow 变更，需要全量构建"
-                echo "build_backend=true" >> $GITHUB_OUTPUT
-                echo "build_frontend=true" >> $GITHUB_OUTPUT
-                echo "build_any=true" >> $GITHUB_OUTPUT
-                ;;
-              agent-insight-server/Dockerfile)
-                echo "🟢 后端 Dockerfile 变更"
-                echo "build_backend=true" >> $GITHUB_OUTPUT
-                echo "build_any=true" >> $GITHUB_OUTPUT
-                ;;
-              agent-insight-server/*)
-                echo "🟢 后端变更: $f"
-                echo "build_backend=true" >> $GITHUB_OUTPUT
-                echo "build_any=true" >> $GITHUB_OUTPUT
-                ;;
-              agent-insight-web/Dockerfile)
-                echo "🟡 前端 Dockerfile 变更"
-                echo "build_frontend=true" >> $GITHUB_OUTPUT
-                echo "build_any=true" >> $GITHUB_OUTPUT
-                ;;
-              agent-insight-web/*)
-                echo "🟡 前端变更: $f"
-                echo "build_frontend=true" >> $GITHUB_OUTPUT
-                echo "build_any=true" >> $GITHUB_OUTPUT
-                ;;
-              *)
-                echo "⚪ 无关变更: $f"
-                ;;
-            esac
-          done
-
-          echo ""
-          echo "=== 最终判断 ==="
-          echo "build_backend=${{ steps.changes.outputs.build_backend }}"
-          echo "build_frontend=${{ steps.changes.outputs.build_frontend }}"
-          echo "build_any=${{ steps.changes.outputs.build_any }}"
-
-  # ---------------------------------------------------------------------------
-  # 构建 Docker 镜像（仅在有代码变更时执行）
-  # ---------------------------------------------------------------------------
-  build:
-    needs: detect-changes
-    if: needs.detect-changes.outputs.build_any == 'true'
-    runs-on: ubuntu-latest
-    environment: xcy
-
-    steps:
-      - uses: actions/checkout@v5
+          ref: ${{ needs.prepare.outputs.head_sha }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Log in to GitHub Container Registry
+      - name: Login to GHCR
         uses: docker/login-action@v3
         with:
           registry: ${{ env.IMAGE_REGISTRY }}
-          username: ${{ github.repository_owner }}
-          password: ${{ secrets.IMAGE_REGISTRY_TOKEN }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.IMAGE_REGISTRY_TOKEN || github.token }}
 
-      - name: Build and push backend image
-        if: needs.detect-changes.outputs.build_backend == 'true'
+      - name: Image tag
+        id: vars
+        run: echo "image_tag=${{ needs.prepare.outputs.head_sha }}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push backend
+        if: needs.prepare.outputs.build_backend == 'true'
         uses: docker/build-push-action@v6
         with:
           context: .
           file: ./agent-insight-server/Dockerfile
           push: true
           tags: |
-            ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_PROJECT }}-backend:${{ github.sha }}
-            ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_PROJECT }}-backend:latest
+            ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_BACKEND }}:${{ steps.vars.outputs.image_tag }}
+            ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_BACKEND }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Build and push frontend image
-        if: needs.detect-changes.outputs.build_frontend == 'true'
+      - name: Build and push frontend
+        if: needs.prepare.outputs.build_frontend == 'true'
         uses: docker/build-push-action@v6
         with:
           context: ./agent-insight-web
           file: ./agent-insight-web/Dockerfile
           push: true
+          build-args: |
+            VITE_API_BASE_URL=/api
           tags: |
-            ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_PROJECT }}-frontend:${{ github.sha }}
-            ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_PROJECT }}-frontend:latest
+            ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_FRONTEND }}:${{ steps.vars.outputs.image_tag }}
+            ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_FRONTEND }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  # ---------------------------------------------------------------------------
-  # 部署到远程服务器（始终执行，直接 pull latest 镜像）
-  # ---------------------------------------------------------------------------
+      - name: Summary
+        run: |
+          echo "## Build" >> "$GITHUB_STEP_SUMMARY"
+          echo "- sha: \`${{ steps.vars.outputs.image_tag }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- backend: ${{ needs.prepare.outputs.build_backend }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- frontend: ${{ needs.prepare.outputs.build_frontend }}" >> "$GITHUB_STEP_SUMMARY"
+
   deploy:
-    needs: detect-changes
+    name: Deploy to Server
+    needs: [prepare, build]
+    if: needs.prepare.outputs.build_any == 'true'
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
     environment: xcy
 
     steps:
-      - name: Verify DEPLOY_SSH_KEY fingerprint
+      - name: Validate SSH key
         run: |
-          mkdir -p ~/.ssh
-          chmod 700 ~/.ssh
-          printf '%s\n' "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-          echo "=== Key fingerprint (字节数 + sha256 + 公开指纹) ==="
-          wc -c ~/.ssh/deploy_key | awk '{print "字节数: " $1}'
-          shasum -a 256 ~/.ssh/deploy_key | awk '{print "sha256: " $1}'
-          ssh-keygen -l -f ~/.ssh/deploy_key | awk '{print "fingerprint: " $2 " (" $1 ")"}'
+          printf '%s\n' "${{ secrets.DEPLOY_SSH_KEY }}" > ~/ssh_key
+          chmod 600 ~/ssh_key
+          ssh-keygen -l -f ~/ssh_key
 
-      - name: Deploy to remote server via SSH
-        uses: appleboy/ssh-action@v1
+      - name: Deploy via SSH (pull only — no compose/.env copy)
+        uses: appleboy/ssh-action@v1.2.5
+        env:
+          NEW_TAG: ${{ needs.build.outputs.image_tag }}
+          MANUAL_TAG: ${{ inputs.image_tag }}
+          BUILD_BE: ${{ needs.prepare.outputs.build_backend }}
+          BUILD_FE: ${{ needs.prepare.outputs.build_frontend }}
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
+          port: ${{ secrets.DEPLOY_SSH_PORT || 22 }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
-          port: ${{ secrets.DEPLOY_SSH_PORT || '22' }}
+          envs: DEPLOY_PATH,COMPOSE_FILE,COMPOSE_BACKEND,COMPOSE_FRONTEND,NEW_TAG,MANUAL_TAG,BUILD_BE,BUILD_FE,IMAGE_REGISTRY
           script: |
             set -e
-            echo "=== SSH OK ==="
-            whoami
-            hostname
+            echo "=== CD 不拷贝 compose/.env；只拉镜像重启（服务器本地维护配置）==="
+            cd "${{ env.DEPLOY_PATH }}"
 
-            docker login ${{ env.IMAGE_REGISTRY }} -u "${{ github.actor }}" --password-stdin <<< "${{ secrets.IMAGE_REGISTRY_TOKEN }}"
-            echo "=== deploy path: ${{ secrets.DEPLOY_PATH }}"
-            cd ${{ secrets.DEPLOY_PATH }}
+            echo "${{ secrets.IMAGE_REGISTRY_TOKEN || github.token }}" | docker login ${{ env.IMAGE_REGISTRY }} -u ${{ github.actor }} --password-stdin
 
-            # 根据变更范围决定 pull/restart 哪些服务
-            # build job 没运行时，latest 镜像不变，pull 也不会拉新层
-            if [[ "${{ needs.detect-changes.outputs.build_backend }}" == "true" ]]; then
-              echo "=== 后端有变更，pull 后端镜像 ==="
-              docker compose -f ${{ secrets.DEPLOY_PATH }}/${{ env.COMPOSE_FILE }} pull ${{ env.IMAGE_PROJECT }}-backend
-              docker compose -f ${{ secrets.DEPLOY_PATH }}/${{ env.COMPOSE_FILE }} up -d ${{ env.IMAGE_PROJECT }}-backend
+            if [ -n "$MANUAL_TAG" ]; then
+              DEPLOY_TAG="$MANUAL_TAG"
+            else
+              DEPLOY_TAG="latest"
             fi
+            echo "Deploy tag=$DEPLOY_TAG (build=$NEW_TAG)"
 
-            if [[ "${{ needs.detect-changes.outputs.build_frontend }}" == "true" ]]; then
-              echo "=== 前端有变更，pull 前端镜像 ==="
-              docker compose -f ${{ secrets.DEPLOY_PATH }}/${{ env.COMPOSE_FILE }} pull ${{ env.IMAGE_PROJECT }}-frontend
-              docker compose -f ${{ secrets.DEPLOY_PATH }}/${{ env.COMPOSE_FILE }} up -d ${{ env.IMAGE_PROJECT }}-frontend
-            fi
+            SERVICES=""
+            if [ "$BUILD_BE" = "true" ]; then SERVICES="$SERVICES ${{ env.COMPOSE_BACKEND }}"; fi
+            if [ "$BUILD_FE" = "true" ]; then SERVICES="$SERVICES ${{ env.COMPOSE_FRONTEND }}"; fi
+            SERVICES=$(echo "$SERVICES" | xargs)
+            echo "Services: $SERVICES"
 
-            if [[ "${{ needs.detect-changes.outputs.build_any }}" == "false" ]]; then
-              echo "=== 无代码变更，仅 pull latest 镜像（保持最新）==="
-              docker compose -f ${{ secrets.DEPLOY_PATH }}/${{ env.COMPOSE_FILE }} pull ${{ env.IMAGE_PROJECT }}-backend ${{ env.IMAGE_PROJECT }}-frontend
-              docker compose -f ${{ secrets.DEPLOY_PATH }}/${{ env.COMPOSE_FILE }} up -d ${{ env.IMAGE_PROJECT }}-backend ${{ env.IMAGE_PROJECT }}-frontend
-            fi
+            IMAGE_TAG="$DEPLOY_TAG" docker compose -f ${{ env.COMPOSE_FILE }} pull $SERVICES
+            IMAGE_TAG="$DEPLOY_TAG" docker compose -f ${{ env.COMPOSE_FILE }} up -d --remove-orphans $SERVICES
 
-            docker compose -f ${{ secrets.DEPLOY_PATH }}/${{ env.COMPOSE_FILE }} ps
+            echo "=== Health check (最多 90s) ==="
+            for svc in $SERVICES; do
+              HEALTHY=false
+              for i in $(seq 1 18); do
+                sleep 5
+                STATUS=$(docker inspect --format='{{.State.Health.Status}}' "$svc" 2>/dev/null || echo "none")
+                RUNNING=$(docker inspect --format='{{.State.Running}}' "$svc" 2>/dev/null || echo "false")
+                echo "  $svc attempt $i: health=$STATUS running=$RUNNING"
+                if [ "$STATUS" = "healthy" ] || [ "$STATUS" = "none" -a "$RUNNING" = "true" ]; then
+                  # backend 若无 Health 字段则看 Running；有 Health 必须 healthy
+                  if [ "$STATUS" = "healthy" ] || [ "$STATUS" = "none" ]; then
+                    HEALTHY=true
+                    break
+                  fi
+                fi
+                if [ "$RUNNING" = "false" ]; then
+                  break
+                fi
+              done
+              if [ "$HEALTHY" != "true" ]; then
+                echo "Health check failed for $svc"
+                docker logs "$svc" --tail 80 || true
+                exit 1
+              fi
+            done
+
+            docker compose -f ${{ env.COMPOSE_FILE }} ps
+            echo "=== Deploy OK ==="
+
+      - name: Cleanup
+        if: always()
+        run: rm -f ~/ssh_key

@@ -1,34 +1,20 @@
 # =============================================================================
-# Agent Insight 后端 Dockerfile
-# 基于 eclipse-temurin:21 构建，暴露 9280 端口
-# 构建: docker build -f agent-insight-server/Dockerfile -t agent-insight-server:1.0.0 .
-# 运行: docker run -d -p 9280:9280 --name agent-insight-server agent-insight-server:1.0.0
+# Agent Insight 后端 Dockerfile（对齐 ai-job-hunter-be 小内存 JVM 约定）
+# 构建: docker build -f agent-insight-server/Dockerfile -t agent-insight/backend:latest .
 # =============================================================================
 #
-# 多模块 Maven 项目说明：
-#   - context 使用仓库根目录 "."
-#   - 通过 -pl agent-insight-server -am 只构建后端模块
-#   - 需要复制根目录 pom.xml 以解析 parent POM
-#
-# 镜像分层说明：
-#   - builder 阶段：用于编译，会包含源码，但只在构建时存在
-#   - final 阶段：只复制 jar，不包含源码，用于运行
-#
+# 多模块 Maven：context 为仓库根；-pl agent-insight-server -am
 # =============================================================================
 
 FROM maven:3.9.9-eclipse-temurin-21-alpine AS builder
 
 WORKDIR /app
 
-# 先只复制 POM，利用 Docker layer cache 缓存 Maven 依赖
-# 只要 pom.xml 不变，这一层就会命中缓存，不会重复下载依赖
 COPY pom.xml ./pom.xml
 COPY agent-insight-server/pom.xml ./agent-insight-server/pom.xml
 
-# 下载依赖（不编译）
 RUN mvn dependency:go-offline -pl agent-insight-server -am -q
 
-# 再复制源码，编译打包
 COPY agent-insight-server/src ./agent-insight-server/src
 RUN mvn package -DskipTests -q -pl agent-insight-server -am
 
@@ -42,16 +28,17 @@ COPY --from=builder /app/agent-insight-server/target/*.jar app.jar
 
 EXPOSE 9280
 
-ENV JAVA_OPTS="-Xms512m -Xmx1024m -XX:+UseG1GC"
+# 小机器防 OOM：按容器内存上限吃堆（compose mem_limit 建议 512m~768m）
+# 可用环境变量覆盖：JAVA_OPTS
+ENV JAVA_OPTS="-XX:MaxRAMPercentage=70.0 -XX:InitialRAMPercentage=15.0 -XX:MaxMetaspaceSize=192m -XX:+ExitOnOutOfMemoryError -XX:+UseG1GC"
 
-# Spring Boot 官方 Actuator（原生），默认路径 /actuator/health —— 不是 Nginx 的 /health
-# 需依赖 spring-boot-starter-actuator；与前端 compose 里 80/health 无关
+# Spring Boot Actuator（需 spring-boot-starter-actuator；Security 须放行）
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:9280/actuator/health || exit 1
+    CMD curl -f http://127.0.0.1:9280/actuator/health || exit 1
 
 ENTRYPOINT ["/sbin/tini", "--"]
 
-COPY docker-entrypoint.sh /docker-entrypoint.sh
+COPY agent-insight-server/docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh
 
 CMD ["/docker-entrypoint.sh"]

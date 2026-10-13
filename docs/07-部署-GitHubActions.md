@@ -7,6 +7,15 @@
 | v1.2 | 2026-07-21 | - | 新增 §2.3 GitHub Actions 内置变量说明（`github.repository_owner` 等无需配置）；§2.4/§2.5 顺延到 §2.5/§2.6 |
 | v1.3 | 2026-07-21 | - | 新增 §1.3 关键环境变量分类表 + DOMAIN 说明（DOMAIN 是服务器 docker-compose.yml 变量，不是 GitHub Secret）；部署流程图加 Traefik/DOMAIN 路由；修 §7.2 把 `DEPLOY_REGISTRY_TOKEN` 改回 `IMAGE_REGISTRY_TOKEN`；新增 §7.4 DOMAIN 未填错误排查 |
 | v1.4 | 2026-08-09 | - | 废弃 `/opt/project/envs/`；改为 `/opt/project/agent-insight/.env`；DEPLOY_PATH=`/opt/project/agent-insight` |
+| v1.5 | 2026-10-13 | - | CD 对齐 ai-job-hunter：`workflow_run`+只拉镜像；镜像路径 `agent-insight/{backend,frontend}`；JVM MaxRAMPercentage |
+| v1.6 | 2026-10-14 | orjrs | compose 每个服务 `mem_limit`+`cpus`；去掉 compose 内 `-Xmx`，JVM 只留 Dockerfile `JAVA_OPTS` |
+
+## [变更] 容器内存 / CPU 硬顶（2026-10-14）
+
+- **变更原因**：同机小机曾被 agent-insight-backend 打满 CPU/内存导致登录卡死
+- **约定**：`mem_limit`/`cpus` 写在 compose；`JAVA_OPTS`（MaxRAMPercentage）只在 Dockerfile；**不要**在 compose 再写 `-Xmx`
+- **默认**：backend `768m`/`1.0`；frontend `128m`/`0.25`；本地 mysql/mongo `512m`/`1.0`；redis `128m`/`0.25`
+- **服务器**：CD 不覆盖 compose，手工同步后 `docker compose up -d --force-recreate`
 
 ---
 
@@ -98,7 +107,7 @@ gh api -X PUT repos/<owner>/agent-insight/environments/xcy
 | `DEPLOY_USER` | SSH 用户名（建议创建专用 deploy 用户，不要用 root） | `deploy` |
 | `DEPLOY_SSH_KEY` | SSH 私钥（包含 `-----BEGIN` 和 `-----END`） | `-----BEGIN OPENSSH PRIVATE KEY-----...` |
 | `DEPLOY_SSH_PORT` | SSH 端口（可选，默认 22） | `22` |
-| `DEPLOY_PATH` | 服务器部署目录路径 | `/opt/docker/agent-insight` |
+| `DEPLOY_PATH` | 服务器部署目录路径 | `/opt/project/agent-insight` |
 
 ### 2.2 镜像仓库
 
@@ -166,7 +175,7 @@ gh secret set DEPLOY_USER --body "deploy" --env xcy
 #gh secret set DEPLOY_SSH_KEY --body "你的SSH私钥内容" --env xcy
 gh secret set DEPLOY_SSH_KEY < ~/.ssh/你的SSH文件名 --env xcy
 gh secret set DEPLOY_SSH_PORT --body "22" --env xcy
-gh secret set DEPLOY_PATH --body "/opt/docker/agent-insight" --env xcy
+gh secret set DEPLOY_PATH --body "/opt/project/agent-insight" --env xcy
 
 # 镜像仓库
 # IMAGE_REGISTRY 写在 cd.yml 的 env 段（默认 ghcr.io），不是 secret，不需要 gh secret set

@@ -6,7 +6,7 @@
 
 set -e
 
-echo "[Agent Insight] JAVA_OPTS: $JAVA_OPTS"
+echo "[Agent Insight] JAVA_OPTS: ${JAVA_OPTS:-(default empty)}"
 
 # 如果外部配置文件挂载到 /config/application.yml，复制到运行目录
 if [ -f "/config/application.yml" ]; then
@@ -14,5 +14,5 @@ if [ -f "/config/application.yml" ]; then
     cp /config/application.yml /app/config.yml
 fi
 
-# 执行 Spring Boot JAR
+# exec 保证信号正确；JAVA_OPTS 需经 sh -c 展开（由本脚本提供）
 exec java $JAVA_OPTS -jar app.jar "$@"
