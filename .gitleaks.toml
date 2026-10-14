@@ -1,0 +1,118 @@
+# =============================================================================
+# .gitleaks.toml — agent-insight 仓库专用 Gitleaks 规则
+# =============================================================================
+# 在默认规则基础上补充以下自定义规则：
+#   - MySQL / PostgreSQL 凭据
+#   - DeepSeek / 通义 / 智谱 / 文心 等国产 LLM API key 前缀
+#   - AES-256 base64 编码的加密 key
+#   - Spring Boot 配置文件里的密码字段
+#
+# 文档：https://github.com/gitleaks/gitleaks/blob/master/config/custom_rules.md
+# =============================================================================
+
+title = "agent-insight custom secret detection rules"
+
+# -----------------------------------------------------------------------------
+# 1. MySQL / PostgreSQL connection strings with embedded password
+# -----------------------------------------------------------------------------
+[[rules]]
+id = "mysql-connection-with-password"
+description = "MySQL JDBC URL with embedded password"
+regex = '''jdbc:mysql://[^\s:]+:[0-9]+/[^\s]+\?[^\s]*password=[^\s&]+'''
+tags = ["database", "credential"]
+
+[[rules]]
+id = "postgres-connection-with-password"
+description = "PostgreSQL JDBC URL with embedded password"
+regex = '''jdbc:postgresql://[^\s:]+:[0-9]+/[^\s]+'''
+# 仅在 diff 行才高亮（避免误报，PG URL 不一定带密码）
+keywords = ["jdbc:postgresql"]
+
+# -----------------------------------------------------------------------------
+# 2. 国产 LLM API key 前缀
+# -----------------------------------------------------------------------------
+[[rules]]
+id = "deepseek-api-key"
+description = "DeepSeek API key"
+regex = '''sk-[a-f0-9]{32,}'''
+keywords = ["deepseek", "DEEPSEEK", "sk-"]
+
+[[rules]]
+id = "zhipu-api-key"
+description = "Zhipu (智谱) API key"
+regex = '''[a-f0-9]{32}\.[A-Za-z0-9]{16,}'''
+keywords = ["zhipu", "ZHIPU", "glm"]
+
+[[rules]]
+id = "qwen-api-key"
+description = "通义千问 / DashScope API key"
+regex = '''sk-[a-z0-9]{32,}'''
+keywords = ["qwen", "QWEN", "dashscope", "DASHSCOPE"]
+
+[[rules]]
+id = "anthropic-api-key"
+description = "Anthropic Claude API key"
+regex = '''sk-ant-[A-Za-z0-9_\-]{40,}'''
+keywords = ["anthropic", "ANTHROPIC", "claude"]
+
+# -----------------------------------------------------------------------------
+# 3. Spring Boot application 配置中的密码字段
+# -----------------------------------------------------------------------------
+[[rules]]
+id = "spring-password-property"
+description = "Spring Boot datasource / redis password"
+regex = '''(?i)(spring\.datasource\.password|spring\.data\.redis\.password|management\.username)[ \t]*[:=][ \t]*[^\s${}][^\s]{3,}'''
+keywords = ["spring.datasource.password", "spring.data.redis.password"]
+
+# -----------------------------------------------------------------------------
+# 4. Docker / docker-compose 中的明文密码
+# -----------------------------------------------------------------------------
+[[rules]]
+id = "docker-mysql-root-password"
+description = "Docker MySQL root password"
+regex = '''(?i)MYSQL_ROOT_PASSWORD[ \t]*[:=][ \t]*[^\s${}][^\s]{3,}'''
+keywords = ["MYSQL_ROOT_PASSWORD"]
+
+[[rules]]
+id = "docker-mongo-password"
+description = "Docker MongoDB password"
+regex = '''(?i)MONGO_INITDB_ROOT_PASSWORD[ \t]*[:=][ \t]*[^\s${}][^\s]{3,}'''
+keywords = ["MONGO_INITDB_ROOT_PASSWORD"]
+
+# -----------------------------------------------------------------------------
+# 5. AES-256 加密 key（base64 编码 32 字节 = 44 字符 base64）
+# 用于 agent-insight.security.encryption-key 等场景
+# -----------------------------------------------------------------------------
+[[rules]]
+id = "aes256-base64-key"
+description = "AES-256 base64 encoded key (44 chars)"
+regex = '''[A-Za-z0-9+/]{43}=[A-Za-z0-9+/]?'''
+# 仅在包含 encryption / key 关键词的行触发
+keywords = ["encryption-key", "encryption_key", "INSIGHT_ENCRYPTION_KEY"]
+# 误报较多，仅作为中危
+
+# -----------------------------------------------------------------------------
+# 6. 允许列表（白名单）— 这些文件即使包含敏感词也不报警
+# -----------------------------------------------------------------------------
+[allowlist]
+description = "Global allowlist for agent-insight"
+paths = [
+  '''(^|/)(\.gitleaks\.toml)$''',
+  '''(^|/)docs/.*\.md$''',            # 文档中引用 ${ENV_VAR} 模式不报警
+  '''(^|/)scripts/clean-secret-history\.sh$''',  # 清理脚本本身
+  '''(^|/)scripts/hooks/pre-commit$''',
+  '''(^|/)AGENTS\.md$''',
+  # env.example 模板必须含示例密码（用 YOUR_PASSWORD_HERE 等占位符）
+  '''\.env\.example$''',
+  '''envs/.*\.env\.example$''',
+]
+
+# 在白名单行的内容里允许 ${...} 占位符
+regexes = [
+  '''\$\{[^}]+\}''',           # ${ENV_VAR} 形式
+  '''\$\{[^}]+:-[^}]+\}''',   # ${ENV_VAR:-default} 形式
+  '''YOUR_[A-Z_]+_HERE'''',   # 占位符
+  '''change-me''',
+  '''REPLACE_ME''',
+  '''placeholder''',
+]

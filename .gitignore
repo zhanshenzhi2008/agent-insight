@@ -37,6 +37,7 @@
 
 # 但 *.env.example 模板必须允许入仓（提供部署参考）
 !**/envs/*.env.example
+!**/.env.example
 
 # databases/.env 同理
 **/databases/.env
