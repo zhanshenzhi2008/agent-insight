@@ -115,12 +115,15 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      # 推镜像必须用 github.token（本 workflow 已 packages: write）
+      # 勿优先 IMAGE_REGISTRY_TOKEN：旧 PAT 若只有 read:packages 会报
+      #   denied: permission_denied: read_package
       - name: Login to GHCR
         uses: docker/login-action@v3
         with:
           registry: ${{ env.IMAGE_REGISTRY }}
           username: ${{ github.actor }}
-          password: ${{ secrets.IMAGE_REGISTRY_TOKEN || github.token }}
+          password: ${{ github.token }}
 
       - name: Image tag
         id: vars
@@ -193,7 +196,10 @@ jobs:
             echo "=== CD 不拷贝 compose/.env；只拉镜像重启（服务器本地维护配置）==="
             cd "${{ env.DEPLOY_PATH }}"
 
-            echo "${{ secrets.IMAGE_REGISTRY_TOKEN || github.token }}" | docker login ${{ env.IMAGE_REGISTRY }} -u ${{ github.actor }} --password-stdin
+            # 服务器拉私有包：优先 PAT；未配置则用本次 job 的 GITHUB_TOKEN
+            REG_TOKEN='${{ secrets.IMAGE_REGISTRY_TOKEN }}'
+            if [ -z "$REG_TOKEN" ]; then REG_TOKEN='${{ github.token }}'; fi
+            echo "$REG_TOKEN" | docker login ${{ env.IMAGE_REGISTRY }} -u ${{ github.actor }} --password-stdin
 
             if [ -n "$MANUAL_TAG" ]; then
               DEPLOY_TAG="$MANUAL_TAG"
