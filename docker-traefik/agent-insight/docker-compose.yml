@@ -35,7 +35,7 @@ services:
     #build:
     #  context: ../../agent-insight-server
     #  dockerfile: Dockerfile
-    # 镜像路径必须与 .github/workflows/cd.yml 推送一致（slash 包名）
+    # 镜像名必须与 .github/workflows/cd.yml 推送一致（扁平名，勿用 slash 嵌套包）
     image: ghcr.io/${IMAGE_NAMESPACE:-zhanshenzhi2008}/agent-insight-backend:${IMAGE_TAG:-latest}
     container_name: agent-insight-backend
     restart: unless-stopped
