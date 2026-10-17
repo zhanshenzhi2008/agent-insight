@@ -36,7 +36,7 @@ services:
     #  context: ../../agent-insight-server
     #  dockerfile: Dockerfile
     # 镜像路径必须与 .github/workflows/cd.yml 推送一致（slash 包名）
-    image: ghcr.io/${IMAGE_NAMESPACE:-zhanshenzhi2008}/agent-insight/backend:${IMAGE_TAG:-latest}
+    image: ghcr.io/${IMAGE_NAMESPACE:-zhanshenzhi2008}/agent-insight-backend:${IMAGE_TAG:-latest}
     container_name: agent-insight-backend
     restart: unless-stopped
     # 远端小机：限制容器内存/CPU；JVM 堆只用 Dockerfile JAVA_OPTS（勿在此写 -Xmx）
@@ -62,7 +62,7 @@ services:
       - db-net
 
   agent-insight-frontend:
-    image: ghcr.io/${IMAGE_NAMESPACE:-zhanshenzhi2008}/agent-insight/frontend:${IMAGE_TAG:-latest}
+    image: ghcr.io/${IMAGE_NAMESPACE:-zhanshenzhi2008}/agent-insight-frontend:${IMAGE_TAG:-latest}
     container_name: agent-insight-frontend
     restart: unless-stopped
     mem_limit: ${FE_MEM_LIMIT:-128m}

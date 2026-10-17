@@ -8,6 +8,7 @@
 | v1.3 | 2026-07-21 | - | 新增 §1.3 关键环境变量分类表 + DOMAIN 说明（DOMAIN 是服务器 docker-compose.yml 变量，不是 GitHub Secret）；部署流程图加 Traefik/DOMAIN 路由；修 §7.2 把 `DEPLOY_REGISTRY_TOKEN` 改回 `IMAGE_REGISTRY_TOKEN`；新增 §7.4 DOMAIN 未填错误排查 |
 | v1.4 | 2026-08-09 | - | 废弃 `/opt/project/envs/`；改为 `/opt/project/agent-insight/.env`；DEPLOY_PATH=`/opt/project/agent-insight` |
 | v1.5 | 2026-10-13 | - | CD 对齐 ai-job-hunter：`workflow_run`+只拉镜像；镜像路径 `agent-insight/{backend,frontend}`；JVM MaxRAMPercentage |
+| v1.6 | 2026-10-17 | - | GHCR 镜像改扁平名 `agent-insight-backend` / `agent-insight-frontend`（避免嵌套包 push 被拒） |
 | v1.6 | 2026-10-14 | orjrs | compose 每个服务 `mem_limit`+`cpus`；去掉 compose 内 `-Xmx`，JVM 只留 Dockerfile `JAVA_OPTS` |
 
 ## [变更] 容器内存 / CPU 硬顶（2026-10-14）

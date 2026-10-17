@@ -1,6 +1,6 @@
 # =============================================================================
 # Agent Insight 后端 Dockerfile（对齐 ai-job-hunter-be 小内存 JVM 约定）
-# 构建: docker build -f agent-insight-server/Dockerfile -t agent-insight/backend:latest .
+# 构建: docker build -f agent-insight-server/Dockerfile -t agent-insight-backend:latest .
 # =============================================================================
 #
 # 多模块 Maven：context 为仓库根；-pl agent-insight-server -am

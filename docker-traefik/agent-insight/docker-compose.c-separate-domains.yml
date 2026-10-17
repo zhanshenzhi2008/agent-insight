@@ -8,7 +8,7 @@
 
 services:
   agent-insight-backend:
-    image: ghcr.io/${IMAGE_NAMESPACE:-zhanshenzhi2008}/agent-insight/backend:${IMAGE_TAG:-latest}
+    image: ghcr.io/${IMAGE_NAMESPACE:-zhanshenzhi2008}/agent-insight-backend:${IMAGE_TAG:-latest}
     mem_limit: ${BE_MEM_LIMIT:-768m}
     mem_reservation: ${BE_MEM_RESERVATION:-256m}
     cpus: ${BE_CPUS:-1.0}
@@ -38,7 +38,7 @@ services:
       - proxy
 
   agent-insight-frontend:
-    image: ghcr.io/${IMAGE_NAMESPACE:-zhanshenzhi2008}/agent-insight/frontend:${IMAGE_TAG:-latest}
+    image: ghcr.io/${IMAGE_NAMESPACE:-zhanshenzhi2008}/agent-insight-frontend:${IMAGE_TAG:-latest}
     container_name: agent-insight-frontend
     restart: unless-stopped
     mem_limit: ${FE_MEM_LIMIT:-128m}

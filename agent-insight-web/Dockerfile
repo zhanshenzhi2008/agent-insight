@@ -1,6 +1,6 @@
 # =============================================================================
 # Agent Insight 前端 Dockerfile（对齐 ai-job-hunter-fe：Node 22 + nginx 静态托管）
-# 构建: docker build -f Dockerfile -t agent-insight/frontend:latest .
+# 构建: docker build -f Dockerfile -t agent-insight-frontend:latest .
 # =============================================================================
 
 FROM node:22-alpine AS builder

@@ -4,7 +4,8 @@
 # 硬规则：
 #   - 服务器只 docker login → pull → up；不 SCP/rsync 覆盖 compose / .env
 #   - 镜像双 tag：immutable(sha) + :latest；服务器始终拉 :latest
-#   - 镜像路径与 compose 一致：…/agent-insight/backend、…/agent-insight/frontend
+#   - 镜像名扁平（对齐 ai-job-hunter）：agent-insight-backend / agent-insight-frontend
+#     勿用 agent-insight/backend（GHCR 嵌套包易 permission_denied: read_package）
 #   - CI 通过后才部署（workflow_run）
 #
 # Secrets：DEPLOY_HOST / DEPLOY_USER / DEPLOY_SSH_KEY / DEPLOY_PATH
@@ -38,8 +39,8 @@ env:
   IMAGE_REGISTRY: ghcr.io
   IMAGE_NAMESPACE: ${{ github.repository_owner }}
   # GHCR 包路径（slash）；compose image 必须一致
-  IMAGE_BACKEND: agent-insight/backend
-  IMAGE_FRONTEND: agent-insight/frontend
+  IMAGE_BACKEND: agent-insight-backend
+  IMAGE_FRONTEND: agent-insight-frontend
   COMPOSE_FILE: docker-compose.yml
   COMPOSE_BACKEND: agent-insight-backend
   COMPOSE_FRONTEND: agent-insight-frontend
