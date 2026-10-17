@@ -22,7 +22,9 @@ FROM eclipse-temurin:21-jre-alpine
 
 WORKDIR /app
 
-RUN apk add --no-cache curl tini
+# Portainer / 应用日志用北京时间（compose 不必再写 TZ；MySQL 等官方镜像仍在 compose 写）
+RUN apk add --no-cache curl tini tzdata
+ENV TZ=Asia/Shanghai
 
 COPY --from=builder /app/agent-insight-server/target/*.jar app.jar
 
